@@ -1,0 +1,25 @@
+# Credentials / personal settings
+.env
+.env.*
+!.env.example
+settings.json
+state.json
+*.pem
+*.key
+# Runtime and private raw records
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.csv
+*.log
+*.lock
+*.lnk
+validation_*.zip
+__pycache__/
+*.py[cod]
+.venv/
+.test_venv/
+.test_temp*/
+raw_data/
+reports/raw/

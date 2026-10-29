@@ -1,0 +1,138 @@
+{
+  "daily": {
+    "2026-10-15": {
+      "logs_session": 8,
+      "logs_scan": 3133,
+      "logs_info": 16,
+      "logs_error": 317,
+      "scans_complete": 3133,
+      "scans_interrupted": 2,
+      "BUY": 5,
+      "fees": 665.7336873743145,
+      "SELL": 4,
+      "pnl": -19123.35893874531,
+      "손절": 4,
+      "last_equity": 982992.029383577
+    },
+    "2026-10-16": {
+      "logs_scan": 2501,
+      "logs_info": 34,
+      "logs_session": 3,
+      "logs_error": 25701,
+      "scans_complete": 2499,
+      "scans_interrupted": 1,
+      "scans_error": 1974,
+      "SELL": 13,
+      "fees": 1500.4212826350279,
+      "pnl": -507.8560125799122,
+      "1차 익절": 4,
+      "트레일링": 4,
+      "BUY": 11,
+      "손절": 5,
+      "last_equity": 978594.0248395192,
+      "equity_missing": 1974
+    },
+    "2026-10-17": {
+      "logs_error": 73115,
+      "scans_error": 5624,
+      "equity_missing": 5625
+    },
+    "2026-10-18": {
+      "logs_error": 73099,
+      "scans_error": 5623,
+      "equity_missing": 5623
+    },
+    "2026-10-19": {
+      "logs_error": 27300,
+      "logs_session": 1,
+      "logs_info": 5,
+      "logs_scan": 1067,
+      "scans_error": 2100,
+      "scans_complete": 1067,
+      "SELL": 3,
+      "fees": 300.2794057039318,
+      "pnl": 258.53200215959805,
+      "손절": 1,
+      "BUY": 2,
+      "1차 익절": 1,
+      "트레일링": 1,
+      "equity_missing": 2100,
+      "last_equity": 976035.0284682082
+    },
+    "2026-10-20": {
+      "logs_session": 1,
+      "logs_info": 15,
+      "logs_scan": 1468,
+      "logs_error": 709,
+      "scans_complete": 1468,
+      "SELL": 9,
+      "fees": 936.3591850183059,
+      "pnl": -3255.4891484062973,
+      "손절": 4,
+      "BUY": 6,
+      "1차 익절": 3,
+      "트레일링": 2,
+      "last_equity": 994492.4317522882
+    },
+    "2026-10-21": {
+      "logs_scan": 3932,
+      "logs_info": 16,
+      "logs_error": 273,
+      "scans_complete": 3932,
+      "SELL": 8,
+      "fees": 754.7804891834575,
+      "pnl": 8806.197877731465,
+      "트레일링": 3,
+      "BUY": 5,
+      "1차 익절": 3,
+      "손절": 2,
+      "last_equity": 993389.4448284878
+    },
+    "2026-10-22": {
+      "logs_error": 437,
+      "logs_scan": 1782,
+      "logs_info": 18,
+      "scans_complete": 1782,
+      "SELL": 10,
+      "fees": 871.2034233837375,
+      "pnl": 16573.14334409115,
+      "1차 익절": 4,
+      "트레일링": 5,
+      "BUY": 6,
+      "손절": 1,
+      "last_equity": 1002834.0324535447
+    }
+  },
+  "reason_stats": {
+    "손절": {
+      "count": 17,
+      "pnl": -84791.83477951269
+    },
+    "1차 익절": {
+      "count": 15,
+      "pnl": 48351.74502770645
+    },
+    "트레일링": {
+      "count": 15,
+      "pnl": 39191.258876056934
+    }
+  },
+  "completed_count": 32,
+  "completed_wins": 15,
+  "max_drawdown_pct": -3.2500706856626205,
+  "reconciliation": {
+    "cash_replay": 552526.1691242508,
+    "cash_state": 552526.1691242508,
+    "cash_diff": 0.0,
+    "fees_diff": 0.0,
+    "pnl_diff": 0.0,
+    "position_diffs": {
+      "KRW-ETH": 0.0,
+      "KRW-WLD": 0.0,
+      "KRW-IRYS": 0.0
+    },
+    "issues": []
+  },
+  "simulation_only": true,
+  "raw_database_published": false
+}

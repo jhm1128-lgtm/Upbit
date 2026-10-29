@@ -1,0 +1,27 @@
+[
+  {
+    "path": "releases/v1.7/UpbitAutoTrading_v1.7_NetworkGuard.zip",
+    "bytes": 53176,
+    "sha256": "7285c2271ed648cff1ae1db2188f3a9940f62c6ca89a2c5d89e9987f519baa29"
+  },
+  {
+    "path": "releases/v1.7/Upbit_v1.7_Network_Update.zip",
+    "bytes": 24283,
+    "sha256": "dd1d46213f740621cd2daad442a2b5ae31cd7a8558b753ac02539826b846876f"
+  },
+  {
+    "path": "releases/v1.7/Upbit_v1.7_Display_Fix.zip",
+    "bytes": 18085,
+    "sha256": "464e17ac1ac5fe31ed5b83db4dc97d6ddedc6da7f463d22f3c9e35756f3ec0dc"
+  },
+  {
+    "path": "releases/v1.8/UpbitAutoTrading_v1.8_Full.zip",
+    "bytes": 74179,
+    "sha256": "4554ea6740ffab0f8f98bed061f931bbd12393bf3ec2971056291d3d411f3945"
+  },
+  {
+    "path": "releases/v1.8/Upbit_v1.8_BearGuard_Update.zip",
+    "bytes": 45751,
+    "sha256": "8707b6ffc14c6638a66dc87ce80e355adbc1843ed78e9269c55527d1b3381318"
+  }
+]

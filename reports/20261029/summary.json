@@ -1,0 +1,190 @@
+{
+  "daily": {
+    "2026-10-22": {
+      "SELL": 7,
+      "fees": 746.5750854088401,
+      "pnl": -7596.404267728547,
+      "BUY": 5,
+      "last_equity": 993470.3380614978,
+      "scan_complete": 2150
+    },
+    "2026-10-23": {
+      "SELL": 3,
+      "fees": 333.8114515555652,
+      "pnl": -7748.408340425231,
+      "BUY": 2,
+      "last_equity": 987445.6722461423,
+      "scan_complete": 4050,
+      "scan_network_error": 1
+    },
+    "2026-10-24": {
+      "SELL": 27,
+      "fees": 2381.8609683957297,
+      "pnl": 36227.57582306431,
+      "BUY": 15,
+      "last_equity": 1020226.593362852,
+      "scan_complete": 4051,
+      "scan_network_error": 1
+    },
+    "2026-10-25": {
+      "BUY": 20,
+      "fees": 2985.829928473279,
+      "SELL": 28,
+      "pnl": -31325.972981917643,
+      "last_equity": 992062.5335863663,
+      "scan_complete": 4069
+    },
+    "2026-10-26": {
+      "BUY": 15,
+      "fees": 2101.153081429973,
+      "SELL": 21,
+      "pnl": 355.00977851734206,
+      "last_equity": 989141.2233157025,
+      "scan_complete": 3689,
+      "scan_network_error": 14
+    },
+    "2026-10-27": {
+      "SELL": 17,
+      "fees": 1935.4249994151667,
+      "pnl": -31085.4261690813,
+      "BUY": 13,
+      "last_equity": 961887.542897469,
+      "scan_complete": 3848,
+      "scan_network_error": 25
+    },
+    "2026-10-28": {
+      "SELL": 12,
+      "fees": 1198.1097524282409,
+      "pnl": -4978.6048959463515,
+      "BUY": 8,
+      "last_equity": 954271.9613363415,
+      "scan_complete": 3898,
+      "scan_network_error": 17
+    },
+    "2026-10-29": {
+      "SELL": 9,
+      "fees": 1108.9283570797245,
+      "pnl": -33327.21419763127,
+      "BUY": 7,
+      "last_equity": 921543.0838311431,
+      "scan_complete": 1702,
+      "scan_network_error": 1,
+      "scan_interrupted": 1
+    }
+  },
+  "reasons": {
+    "1차 익절": {
+      "count": 38,
+      "pnl": 94022.01789010208
+    },
+    "트레일링": {
+      "count": 38,
+      "pnl": 90025.86538280244
+    },
+    "손절": {
+      "count": 48,
+      "pnl": -263527.3285240532
+    }
+  },
+  "cohort": {
+    "count": 83,
+    "pnl": -74624.51960884455,
+    "wins": 37,
+    "mean_return_pct": -0.5990941847055954
+  },
+  "period_realized": -79479.44525114869,
+  "period_fees": 12791.693624186519,
+  "max_drawdown_pct": -10.870835448755633,
+  "scan_counts": {
+    "complete": 27457,
+    "network_error": 59,
+    "interrupted": 1
+  },
+  "filter_groups": {
+    "btc_up": {
+      "count": 20,
+      "pnl": -14287.118358752792,
+      "wins": 8,
+      "mean_return_pct": -0.47599927898560035
+    },
+    "btc_not_up": {
+      "count": 63,
+      "pnl": -60337.40125009176,
+      "wins": 29,
+      "mean_return_pct": -0.6381719325532129
+    },
+    "btc_unknown": {
+      "count": 0,
+      "pnl": 0,
+      "wins": 0,
+      "mean_return_pct": null
+    },
+    "breadth_lt_1_3": {
+      "count": 58,
+      "pnl": -111033.708687943,
+      "wins": 21,
+      "mean_return_pct": -1.2756117192891256
+    },
+    "breadth_ge_1_3": {
+      "count": 25,
+      "pnl": 36409.18907909845,
+      "wins": 16,
+      "mean_return_pct": 0.9704264955281944
+    },
+    "rsi_lt60": {
+      "count": 40,
+      "pnl": -15424.123400021665,
+      "wins": 18,
+      "mean_return_pct": -0.2569402532070909
+    },
+    "rsi_ge60": {
+      "count": 43,
+      "pnl": -59200.39620882289,
+      "wins": 19,
+      "mean_return_pct": -0.9173769116809485
+    }
+  },
+  "health_counts": {
+    "checking": 4,
+    "recovering": 455,
+    "healthy": 36323,
+    "offline": 525,
+    "stale": 1
+  },
+  "event_counts": {
+    "validation_segment": 8,
+    "recovery_check": 211,
+    "recovered": 188,
+    "outage_start": 185,
+    "network_error": 356
+  },
+  "settings_changes": [
+    [
+      "2026-10-22T11:01:36+09:00",
+      {
+        "order_krw": 150000.0,
+        "max_positions": 3,
+        "stop_pct": 3.0,
+        "target_pct": 3.0,
+        "trailing_pct": 2.0,
+        "first_fraction": 0.5,
+        "max_losses": 7,
+        "top_n": 15,
+        "poll_seconds": 15
+      }
+    ]
+  ],
+  "reconciliation": {
+    "cash_diff": 0.0,
+    "fees_diff": 0.0,
+    "realized_diff": 0.0,
+    "issues": [],
+    "position_diff": {
+      "KRW-ETH": 0.0,
+      "KRW-XRP": 0.0
+    },
+    "active_markets_match": true
+  },
+  "simulation_only": true,
+  "raw_database_published": false
+}
