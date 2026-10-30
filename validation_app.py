@@ -19,7 +19,7 @@ from paper import Records,Paper
 from trade_history import read_history,write_history,CATEGORIES,category
 from daily_profit import daily_results,write_daily
 from activity import activity_state
-from market_guard import MarketGuard,POLICY,shock_reason,candle_time
+from market_guard import MarketGuard,POLICY,shock_reason,candle_time,market_counts_text
 from risk_records import RiskBook,benchmark
 from tray_icon import TrayIcon
 from network_guard import NetworkGuard
@@ -51,19 +51,20 @@ class ValidationApp(dashboard.Dashboard):
         self.last_equity=0
         self.record_error=False
         super().__init__(root)
-        root.title('UPBIT AUTO TRADING v1.8 · 가상매매 / 기록 검증 전용')
+        root.title('UPBIT AUTO TRADING v1.8.1 · 가상매매 / 기록 검증 전용')
         self.live_enabled.set(False); self.live_event.clear()
         self.mode_var.set('가상매매 · 실거래 잠금')
         self.balance_text=f"가상 {self.paper.state['cash']:,.0f}원"
         self.safety_text='가상 검증 전용 · 실제 주문 없음'
         self.render_positions(copy.deepcopy(self.paper.state['positions']))
-        self.records.log(stamp(),'session','v1.8 실행 · 가상 잔고/보유 복구')
-        self.network_event('validation_segment',dict(version='1.8',run_id=self.run_id,
+        self.records.log(stamp(),'session','v1.8.1 실행 · 가상 잔고/보유 복구')
+        self.network_event('validation_segment',dict(version='1.8.1',run_id=self.run_id,
             settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,note='기존 잔고/기록 유지, 새 통신 검증 구간'))
         self.sync_trade_csv()
         self.refresh_ledger()
         self.tray=TrayIcon(main.BASE/'bitcoin.ico')
         self.tray.start()
+        root.bind('<Unmap>',self.on_window_unmap,add='+')
         try: root.iconbitmap(str(main.BASE/'bitcoin.ico'))
         except tk.TclError: pass
 
@@ -73,11 +74,11 @@ class ValidationApp(dashboard.Dashboard):
         page=tk.Frame(self.tabs,bg=dashboard.BG)
         self.tabs.add(page,text='가상매매 / 기록')
         button=tk.Button(self.nav_buttons[0].master,text='▣   가상 기록',command=lambda:self.navigate(7),
-            bg='#09213f',fg=dashboard.TEXT,relief='flat',anchor='w',font=('맑은 고딕',12,'bold'),padx=20,pady=15)
+            bg=dashboard.SIDEBAR,fg=dashboard.TEXT,relief='flat',anchor='w',font=('맑은 고딕',12,'bold'),padx=20,pady=15)
         button.pack(fill='x',padx=8,pady=3); self.nav_buttons.append(button)
         self.paper_summary=tk.Label(page,bg=dashboard.BG,fg=dashboard.CYAN,font=('맑은 고딕',12,'bold'),justify='left')
         self.paper_summary.pack(fill='x',padx=18,pady=14)
-        ttk.Button(page,text='검토용 기록 ZIP 내보내기',command=self.export_records).pack(anchor='w',padx=18,pady=8)
+        ttk.Button(page,text='검토용 기록 ZIP 내보내기',command=self.export_records,style='Accent.TButton').pack(anchor='w',padx=18,pady=8)
         tk.Label(page,text='가상 초기자금 1,000,000원 · 편도 수수료 0.05% · 편도 불리한 슬리피지 0.05%\n'
             '가상 체결은 즉시 전량 체결 가정입니다. 실제 유동성/부분체결/통신 지연을 재현하지 않습니다.\n'
             '실제 계좌의 코인은 이 버전에서 손절·익절 감시하지 않습니다. 실거래 활성화는 잠겨 있습니다.\n'
@@ -92,13 +93,21 @@ class ValidationApp(dashboard.Dashboard):
         self.nav_buttons[4].configure(text='▥   기존 손익')
         self.build_ledger()
         self.setup_daily_profit()
+        # Keep the internal source table for renderer compatibility; remove its UI entry.
+        self.tabs.hide(1)
+        self.nav_buttons[1].pack_forget()
         self.build_activity_signal()
         self.network_label=tk.Label(self.tabs.master,bg=dashboard.BG,fg=dashboard.RED,anchor='w',wraplength=1100,
             text='통신 확인 전 · 신규 가상매수 잠금')
         self.network_label.pack(before=self.tabs,fill='x',padx=4,pady=4)
-        self.market_label=tk.Label(self.tabs.master,bg=dashboard.BG,fg=dashboard.CYAN,anchor='w',wraplength=1100,
+        self.market_strip=tk.Frame(self.tabs.master,bg=dashboard.BG)
+        self.market_strip.pack(before=self.tabs,fill='x',padx=4,pady=3)
+        self.market_badge=tk.Label(self.market_strip,text='WAIT · 판정 불가',bg=dashboard.FIELD,fg=dashboard.MUTED,
+            font=('맑은 고딕',12,'bold'),padx=12,pady=5)
+        self.market_badge.pack(side='left',padx=(0,10))
+        self.market_label=tk.Label(self.market_strip,bg=dashboard.BG,fg=dashboard.TEXT,anchor='w',justify='left',wraplength=950,
             text='시장 판단 전 · 신규 진입 잠금')
-        self.market_label.pack(before=self.tabs,fill='x',padx=4,pady=4)
+        self.market_label.pack(side='left',fill='x',expand=True)
 
     def network_event(self,kind,payload):
         with self.records.db() as db:
@@ -127,15 +136,15 @@ class ValidationApp(dashboard.Dashboard):
         return list(self.candidate_values)
 
     def build_activity_signal(self):
-        frame=tk.Frame(self.clock.master,bg='#051b34')
+        frame=tk.Frame(self.clock.master,bg=dashboard.HEADER)
         frame.pack(side='right',padx=12)
-        self.activity_canvas=tk.Canvas(frame,width=80,height=40,bg='#051b34',highlightthickness=0)
+        self.activity_canvas=tk.Canvas(frame,width=80,height=40,bg=dashboard.HEADER,highlightthickness=0)
         self.activity_canvas.pack(side='left')
         self.activity_lights={}
         for x,key,label in [(13,'green','실행'),(40,'yellow','검색'),(67,'red','중지')]:
-            self.activity_lights[key]=self.activity_canvas.create_oval(x-7,3,x+7,17,fill='#20344c',outline='#44617d')
+            self.activity_lights[key]=self.activity_canvas.create_oval(x-7,3,x+7,17,fill='#cbd7e5',outline='#8aa0b5')
             self.activity_canvas.create_text(x,30,text=label,fill=dashboard.MUTED,font=('맑은 고딕',8))
-        self.activity_label=tk.Label(frame,text='중지됨',bg='#051b34',fg=dashboard.RED,font=('맑은 고딕',10,'bold'))
+        self.activity_label=tk.Label(frame,text='중지됨',bg=dashboard.HEADER,fg=dashboard.RED,font=('맑은 고딕',10,'bold'))
         self.activity_label.pack(side='left',padx=6)
         self.update_activity_signal()
 
@@ -146,10 +155,10 @@ class ValidationApp(dashboard.Dashboard):
             health=self.network.snapshot()
             if health['state'] in ('offline','stale'): active,label='red','통신 장애 · 매수 잠금'
             elif health['state']!='healthy': active,label='yellow','통신 복구 확인 중'
-        colors={'green':'#00dd9b','yellow':'#ffca3b','red':'#ff4b73'}
+        colors={'green':dashboard.GREEN,'yellow':'#a76b00','red':dashboard.RED}
         for key,item in self.activity_lights.items():
-            color=colors[key] if key==active else '#20344c'
-            if key==active=='yellow' and int(time.monotonic()*2)%2: color='#997818'
+            color=colors[key] if key==active else '#cbd7e5'
+            if key==active=='yellow' and int(time.monotonic()*2)%2: color='#d6a13b'
             self.activity_canvas.itemconfigure(item,fill=color)
         self.activity_label.configure(text=label,fg=colors[active])
 
@@ -273,10 +282,10 @@ class ValidationApp(dashboard.Dashboard):
 
     def on_live_toggle(self):
         self.live_enabled.set(False); self.live_event.clear()
-        messagebox.showinfo('실거래 잠금','v1.8은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
+        messagebox.showinfo('실거래 잠금','v1.8.1은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
 
     def execute(self,*args,**kwargs):
-        raise RuntimeError('v1.8은 실제 주문을 허용하지 않습니다')
+        raise RuntimeError('v1.8.1은 실제 주문을 허용하지 않습니다')
 
     def update_mode(self):
         self.mode_var.set('가상매매 · 실거래 잠금')
@@ -301,7 +310,7 @@ class ValidationApp(dashboard.Dashboard):
         self.network=NetworkGuard(self.network_event)
         self.regime=MarketGuard()
         self.run_id=stamp()
-        self.network_event('validation_segment',dict(version='1.8',run_id=self.run_id,
+        self.network_event('validation_segment',dict(version='1.8.1',run_id=self.run_id,
             settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,note='시작 버튼 · 새 통신 확인 구간'))
         self.live_event.clear()
         super().start()
@@ -445,7 +454,7 @@ class ValidationApp(dashboard.Dashboard):
                 try:
                     if not self.manage_positions(): raise MarketDataError('보유 시세 확인 실패')
                     scan=self.records.start_scan(stamp(),dict({k:self.config[k] for k in main.DEFAULTS},
-                        version='1.8',run_id=self.run_id,risk_policy=POLICY))
+                        version='1.8.1',run_id=self.run_id,risk_policy=POLICY))
                     self.current_scan=scan; self.scan_text='시장 판단을 위한 전체 후보 조회 중'
                     markets=self.get_candidates(); self.network.confirm_cycle()
                     staged=[]; samples={}
@@ -518,6 +527,14 @@ class ValidationApp(dashboard.Dashboard):
             self.live_event.clear(); self.messages.put(('off',None))
             self.log('가상검증 종료 · 가상 보유/잔고는 다음 실행에 복구됩니다.')
 
+    def on_window_unmap(self,event):
+        if event.widget is self.root and not self.exiting:
+            self.root.after_idle(self.hide_minimized_window)
+
+    def hide_minimized_window(self):
+        if not self.exiting and self.tray and self.tray.available and self.root.state()=='iconic':
+            self.root.withdraw()
+
     def on_close(self):
         if self.tray and self.tray.available:
             self.root.withdraw()
@@ -550,13 +567,13 @@ class ValidationApp(dashboard.Dashboard):
         self.loss_streak_var.set(f"가상 {s['loss_streak']} / {self.config['max_losses']}")
         self.safety_text='기록 저장 실패 · 중지 필요' if self.record_error else '가상 검증 전용 · 실제 주문 없음'
         market=self.regime.snapshot()
+        display,action,foreground,background=dashboard.market_presentation(market['state'])
+        self.market_badge.configure(text=display,fg=foreground,bg=background)
         if self.tray:
-            self.tray.status(f"업비트 v1.8 · {'실행 중' if self.running else '중지됨'} · 시장 {market['state']}")
-        names={'unknown':'판정 불가','recovering':'회복 확인','bear':'약세','cautious':'주의','normal':'정상'}
-        breadth='자료 없음' if market['breadth'] is None else f"{market['breadth']*100:.1f}%"
-        self.market_label.configure(text=f"시장 {names[market['state']]} · 상승 추세 {market['valid']}/{market['expected']} ({breadth}) · "
-            f"{market['reason']} · {self.risk.daily['reason']} · X: 트레이로 숨김" if self.tray and self.tray.available else
-            f"시장 {names[market['state']]} · 상승 추세 {breadth} · {market['reason']} · {self.risk.daily['reason']} · 트레이 사용 불가")
+            self.tray.status(f"업비트 v1.8.1 · {'실행 중' if self.running else '중지됨'} · {display}")
+        counts=market_counts_text(market)
+        self.market_label.configure(text=f"후보군 기준 · {counts} · {action}\n{market['reason']} · {self.risk.daily['reason']}",
+            wraplength=max(400,self.market_strip.winfo_width()-self.market_badge.winfo_reqwidth()-20))
         health=self.network.snapshot()
         network_name={'checking':'시작 확인','recovering':'복구 확인','healthy':'정상','offline':'장애','stale':'수신 지연'}[health['state']]
         self.network_label.configure(text=f"통신 {network_name} · 마지막 종합 정상 수신 {health['last_success'] or '없음'} · "
@@ -605,7 +622,7 @@ def export_bundle(records,path):
             counts={t:db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('scans','observations','trades','logs','quotes','equity','candles','network_events','health_checks','market_checks','entry_decisions','risk_days') if t in tables}
             span=db.execute('SELECT MIN(started),MAX(ended) FROM scans').fetchone()
             state=json.loads(db.execute('SELECT payload FROM state WHERE id=1').fetchone()[0])
-            report=dict(risk_policy=POLICY,version='1.8',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
+            report=dict(risk_policy=POLICY,version='1.8.1',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
                 simulation_only=True,initial_cash=state['initial_cash'],cash=state['cash'],realized_pnl=state['realized'],
                 fees=state['fees'],positions=state['positions'],closed=state['closed'],wins=state['wins'],
                 fee_rate=state['fee'],slippage_bps=state['slippage_bps'],

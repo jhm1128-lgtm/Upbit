@@ -7,15 +7,27 @@ from tkinter import ttk
 import main as engine
 from main import now_kst, fmt_num, pyupbit
 
-BG = '#031025'
-PANEL = '#071d38'
-EDGE = '#174d7a'
-TEXT = '#e9f1ff'
-MUTED = '#9db9db'
-CYAN = '#00d8ed'
-BLUE = '#0878ff'
-GREEN = '#00ca93'
-RED = '#ff4b73'
+BG = '#edf3f8'
+PANEL = '#f8fbff'
+EDGE = '#c8d6e5'
+TEXT = '#19324d'
+MUTED = '#526a82'
+CYAN = '#006f99'
+BLUE = '#2868d8'
+GREEN = '#087650'
+RED = '#bd3546'
+HEADER = '#e2ebf5'
+SIDEBAR = '#dfe9f4'
+FIELD = '#e8eff7'
+
+def market_presentation(state):
+    return {
+        'normal':('BULL · 상승','정상 진입 · 기존 주문 설정',GREEN,'#e1f3ea'),
+        'cautious':('NORMAL · 중립/주의','축소 진입 · 주문 50% / 최대 1종목','#8a5b00','#fff1d2'),
+        'bear':('BEAR · 약세','신규 진입 차단',RED,'#fbe5e9'),
+        'unknown':('WAIT · 판정 불가','신규 진입 대기',MUTED,FIELD),
+        'recovering':('RECOVERING · 회복 확인','새 완료봉 확인 중 · 신규 진입 대기',BLUE,'#e2edff'),
+    }[state]
 
 
 class Dashboard(engine.UpbitAutoTrader):
@@ -29,7 +41,7 @@ class Dashboard(engine.UpbitAutoTrader):
         self.closed = False
         self.nav_buttons = []
         super().__init__(root)
-        root.title('UPBIT AUTO TRADING v1.8 · Neon Dashboard')
+        root.title('UPBIT AUTO TRADING v1.8.1 · Neon Dashboard')
         root.geometry('1536x1000')
         root.minsize(1150,800)
         root.after(500,self.request_chart)
@@ -37,13 +49,13 @@ class Dashboard(engine.UpbitAutoTrader):
 
     def box(self,parent,title,color=CYAN):
         f = tk.Frame(parent,bg=PANEL,highlightbackground=EDGE,highlightthickness=1)
-        tk.Label(f,text=title,bg=PANEL,fg=color,font=('맑은 고딕',12,'bold'),anchor='w').pack(fill='x',padx=12,pady=(10,8))
+        tk.Label(f,text=title,bg=PANEL,fg=color,font=('맑은 고딕',12,'bold'),anchor='w').pack(fill='x',padx=12,pady=(8,6))
         return f
 
-    def table(self,parent,columns):
+    def table(self,parent,columns,height=10):
         wrap = tk.Frame(parent,bg=PANEL)
         wrap.pack(fill='both',expand=True,padx=8,pady=(0,8))
-        tree = ttk.Treeview(wrap,columns=[c[0] for c in columns],show='headings',style='Neon.Treeview')
+        tree = ttk.Treeview(wrap,columns=[c[0] for c in columns],show='headings',style='Neon.Treeview',height=height)
         for key,title,width in columns:
             tree.heading(key,text=title)
             tree.column(key,width=width,minwidth=50,anchor='center',stretch=True)
@@ -52,7 +64,7 @@ class Dashboard(engine.UpbitAutoTrader):
         vs.pack(side='right',fill='y'); hs.pack(side='bottom',fill='x')
         tree.configure(yscrollcommand=vs.set,xscrollcommand=hs.set)
         tree.pack(fill='both',expand=True)
-        tree.tag_configure('pass',foreground=GREEN,background='#07372f')
+        tree.tag_configure('pass',foreground=GREEN,background='#e1f3ea')
         tree.tag_configure('error',foreground=RED)
         return tree
 
@@ -62,20 +74,22 @@ class Dashboard(engine.UpbitAutoTrader):
         for child in self.root.winfo_children(): child.destroy()
         self.root.configure(bg=BG)
         style = ttk.Style()
-        style.configure('Neon.Treeview',background=PANEL,fieldbackground=PANEL,foreground=TEXT,rowheight=29,font=('맑은 고딕',9),borderwidth=0)
-        style.configure('Neon.Treeview.Heading',background='#102c4d',foreground=TEXT,font=('맑은 고딕',9,'bold'),padding=7)
-        style.map('Neon.Treeview',background=[('selected','#164c7a')],foreground=[('selected',TEXT)])
+        style.configure('Neon.Treeview',background=PANEL,fieldbackground=PANEL,foreground=TEXT,rowheight=26,font=('맑은 고딕',9),borderwidth=0)
+        style.configure('Neon.Treeview.Heading',background=FIELD,foreground=TEXT,font=('맑은 고딕',9,'bold'),padding=7)
+        style.map('Neon.Treeview',background=[('selected',BLUE)],foreground=[('selected',TEXT)])
         style.layout('Hidden.TNotebook.Tab',[])
         style.configure('Hidden.TNotebook',background=BG,borderwidth=0)
-        header = tk.Frame(self.root,bg='#051b34',height=58)
+        style.configure('Accent.TButton',background=BLUE,foreground='white',padding=7)
+        style.map('Accent.TButton',background=[('active','#1c54b3')],foreground=[('active','white')])
+        header = tk.Frame(self.root,bg=HEADER,height=58)
         header.pack(fill='x')
-        tk.Label(header,text='▥  UPBIT AUTO TRADING',bg='#051b34',fg=TEXT,font=('Segoe UI',21,'bold')).pack(side='left',padx=18,pady=9)
-        tk.Label(header,text='v1.8',bg='#051b34',fg=CYAN,font=('Segoe UI',15,'bold')).pack(side='left')
-        tk.Label(header,text='거래대금 상위 + 추세 + RSI   |   손절 · 익절 · 트레일링',bg='#051b34',fg=MUTED,font=('맑은 고딕',10)).pack(side='left',padx=22)
-        self.clock = tk.Label(header,bg='#051b34',fg=TEXT,font=('Segoe UI',10))
+        tk.Label(header,text='▥  UPBIT AUTO TRADING',bg=HEADER,fg=TEXT,font=('Segoe UI',21,'bold')).pack(side='left',padx=18,pady=9)
+        tk.Label(header,text='v1.8.1',bg=HEADER,fg=CYAN,font=('Segoe UI',15,'bold')).pack(side='left')
+        tk.Label(header,text='거래대금 상위 + 추세 + RSI   |   손절 · 익절 · 트레일링',bg=HEADER,fg=MUTED,font=('맑은 고딕',10)).pack(side='left',padx=22)
+        self.clock = tk.Label(header,bg=HEADER,fg=TEXT,font=('Segoe UI',10))
         self.clock.pack(side='right',padx=18)
         body = tk.Frame(self.root,bg=BG); body.pack(fill='both',expand=True)
-        sidebar = tk.Frame(body,bg='#09213f',width=174); sidebar.pack(side='left',fill='y'); sidebar.pack_propagate(False)
+        sidebar = tk.Frame(body,bg=SIDEBAR,width=174); sidebar.pack(side='left',fill='y'); sidebar.pack_propagate(False)
         area = tk.Frame(body,bg=BG); area.pack(side='left',fill='both',expand=True,padx=12,pady=12)
         cards = tk.Frame(area,bg=BG); cards.pack(fill='x')
         self.holding_var = tk.StringVar(value='0 / 3')
@@ -84,18 +98,18 @@ class Dashboard(engine.UpbitAutoTrader):
             ('◉','모드',self.mode_var,'#af8bff'),('◷','마지막 스캔',self.last_scan_var,GREEN),
             ('◕','보유 종목',self.holding_var,'#ffbb43')]):
             cards.columnconfigure(i,weight=1)
-            card = tk.Frame(cards,bg=PANEL,highlightbackground=color,highlightthickness=1)
+            card = tk.Frame(cards,bg=PANEL,highlightbackground=EDGE,highlightthickness=1)
             card.grid(row=0,column=i,sticky='nsew',padx=(0,8 if i<4 else 0))
-            tk.Label(card,text=icon,bg=PANEL,fg=color,font=('Segoe UI',29,'bold')).pack(side='left',padx=10,pady=14)
-            inner = tk.Frame(card,bg=PANEL); inner.pack(side='left',fill='both',expand=True,pady=12)
-            tk.Label(inner,text=title,bg=PANEL,fg=color,font=('맑은 고딕',10,'bold'),anchor='w').pack(fill='x')
+            tk.Label(card,text=icon,bg=PANEL,fg=MUTED,font=('Segoe UI',24,'bold')).pack(side='left',padx=10,pady=9)
+            inner = tk.Frame(card,bg=PANEL); inner.pack(side='left',fill='both',expand=True,pady=8)
+            tk.Label(inner,text=title,bg=PANEL,fg=MUTED,font=('맑은 고딕',10,'bold'),anchor='w').pack(fill='x')
             tk.Label(inner,textvariable=var,bg=PANEL,fg=TEXT,font=('맑은 고딕',13,'bold'),anchor='w').pack(fill='x',pady=(6,0))
-        controls = tk.Frame(area,bg=BG); controls.pack(fill='x',pady=12)
+        controls = tk.Frame(area,bg=BG); controls.pack(fill='x',pady=8)
         left = self.box(controls,'⚙  자동매매 제어'); left.pack(side='left',fill='both',expand=True,padx=(0,10))
         row = tk.Frame(left,bg=PANEL); row.pack(fill='x',padx=12,pady=(0,12))
         ttk.Checkbutton(row,text='실전 주문 활성화 (실제 자금 사용)',variable=self.live_enabled,command=self.on_live_toggle).pack(side='left',padx=(0,12))
-        for text,command,color in [('▶ 시작',self.start,'#00a979'),('■ 중지',self.stop,'#dc365b'),('⟳ 잔고 새로고침',self.refresh_balance,'#164575')]:
-            tk.Button(row,text=text,command=command,bg=color,fg='white',activebackground=color,activeforeground='white',relief='flat',font=('맑은 고딕',10,'bold'),padx=14,pady=7).pack(side='left',padx=4)
+        for text,command,color in [('▶ 시작',self.start,'#15805d'),('■ 중지',self.stop,RED),('⟳ 잔고 새로고침',self.refresh_balance,FIELD)]:
+            tk.Button(row,text=text,command=command,bg=color,fg=TEXT if color==FIELD else 'white',activebackground=color,activeforeground=TEXT if color==FIELD else 'white',relief='flat',font=('맑은 고딕',10,'bold'),padx=14,pady=7).pack(side='left',padx=4)
         right = self.box(controls,'⚙  매매 기본 설정 (현재값)',TEXT); right.pack(side='left',fill='both')
         self.config_label = tk.Label(right,bg=PANEL,fg=MUTED,font=('맑은 고딕',9),wraplength=420,justify='left')
         self.config_label.pack(padx=12,pady=(0,12))
@@ -105,32 +119,33 @@ class Dashboard(engine.UpbitAutoTrader):
         titles = ['대시보드','매수 후보','보유 종목','거래 내역','손익 현황','전략 설정','로그']
         for i,(page,title) in enumerate(zip(pages,titles)):
             self.tabs.add(page,text=title)
-            button = tk.Button(sidebar,text=['⌂','▧','◕','▤','▥','⚙','☷'][i]+'   '+title,command=lambda n=i:self.navigate(n),bg='#09213f',fg=TEXT,activebackground=BLUE,activeforeground='white',relief='flat',anchor='w',font=('맑은 고딕',12,'bold'),padx=20,pady=15)
+            button = tk.Button(sidebar,text=['⌂','▧','◕','▤','▥','⚙','☷'][i]+'   '+title,command=lambda n=i:self.navigate(n),bg=SIDEBAR,fg=TEXT,activebackground=BLUE,activeforeground='white',relief='flat',anchor='w',font=('맑은 고딕',12,'bold'),padx=20,pady=15)
             button.pack(fill='x',padx=8,pady=(10 if i==0 else 3,3)); self.nav_buttons.append(button)
-        tk.Label(sidebar,text='NEON DASHBOARD\nv1.8\n\n실거래 잠금',bg='#09213f',fg=MUTED,font=('Segoe UI',9),justify='left').pack(side='bottom',pady=25)
+        tk.Label(sidebar,text='UPBIT DASHBOARD\nv1.8.1\n\n실거래 잠금',bg=SIDEBAR,fg=MUTED,font=('Segoe UI',9),justify='left').pack(side='bottom',pady=25)
         dash = pages[0]
-        dash.rowconfigure(0,weight=6); dash.rowconfigure(1,weight=2); dash.rowconfigure(2,weight=2)
+        dash.rowconfigure(0,weight=1); dash.rowconfigure(1,weight=0); dash.rowconfigure(2,weight=0)
+        self.dashboard_page=dash
         dash.columnconfigure(0,weight=7); dash.columnconfigure(1,weight=3)
         candidates = [('rank','순위',45),('market','코인',95),('price','현재가',100),('change','등락(전일)',85),('value','거래대금(24h)',110),('rsi','RSI(5m)',70),('trend','추세',70),('signal','신호',65),('reason','상세 사유',260)]
-        cb = self.box(dash,'▤  매수 후보 · 거래대금 상위 스캔 결과','#ffcd4b'); cb.grid(row=0,column=0,sticky='nsew',padx=(0,10),pady=(0,10))
+        cb = self.box(dash,'▤  매수 후보 · 거래대금 상위 스캔 결과',TEXT); cb.grid(row=0,column=0,sticky='nsew',padx=(0,10),pady=(0,10))
         self.dash_candidate_tree = self.table(cb,candidates)
         self.dash_candidate_tree.bind('<<TreeviewSelect>>',self.select_chart)
-        chart = self.box(dash,'▥  차트 미리보기','#b78dff'); chart.grid(row=0,column=1,sticky='nsew',pady=(0,10))
+        chart = self.box(dash,'▥  차트 미리보기',TEXT); chart.grid(row=0,column=1,sticky='nsew',pady=(0,10))
         self.chart_title = tk.Label(chart,text='BTC / KRW · 조회 대기',bg=PANEL,fg=TEXT,font=('맑은 고딕',12,'bold'),anchor='w'); self.chart_title.pack(fill='x',padx=12)
         intervals = tk.Frame(chart,bg=PANEL); intervals.pack(fill='x',padx=10,pady=5)
         self.interval_buttons = {}
         for label,interval in [('5분','minute5'),('15분','minute15'),('1시간','minute60'),('4시간','minute240')]:
-            button = tk.Button(intervals,text=label,command=lambda v=interval:self.set_interval(v),bg='#123858',fg=TEXT,relief='flat',padx=8,pady=4)
+            button = tk.Button(intervals,text=label,command=lambda v=interval:self.set_interval(v),bg=FIELD,fg=TEXT,relief='flat',padx=8,pady=4)
             button.pack(side='left',padx=2); self.interval_buttons[interval]=button
-        self.chart_canvas = tk.Canvas(chart,bg='#04162c',highlightthickness=0)
+        self.chart_canvas = tk.Canvas(chart,bg='#fbfdff',highlightthickness=0)
         self.chart_canvas.pack(fill='both',expand=True,padx=10,pady=(0,10)); self.chart_canvas.bind('<Configure>',lambda _:self.draw_chart())
         positions = [('market','코인',95),('avg','평균 매수가',110),('price','현재가',100),('pnl','수익률',85),('qty','보유 수량',110),('target','1차 익절',75),('peak','진입 후 최고가',110)]
-        pb = self.box(dash,'◕  보유 종목','#ffcd4b'); pb.grid(row=1,column=0,sticky='nsew',padx=(0,10),pady=(0,10))
-        self.dash_position_tree = self.table(pb,positions)
+        pb = self.box(dash,'◕  보유 종목',TEXT); pb.grid(row=1,column=0,sticky='nsew',padx=(0,10),pady=(0,10))
+        self.dash_position_tree = self.table(pb,positions,height=5)
         profit = self.box(dash,'◷  오늘의 손익 현황',GREEN); profit.grid(row=1,column=1,sticky='nsew',pady=(0,10))
         self.today_label = tk.Label(profit,bg=PANEL,fg=TEXT,font=('맑은 고딕',12,'bold'),justify='left',anchor='nw'); self.today_label.pack(fill='both',expand=True,padx=12,pady=8)
-        log = self.box(dash,'▣  로그','#b78dff'); log.grid(row=2,column=0,columnspan=2,sticky='nsew')
-        self.log_text = tk.Text(log,bg='#03162c',fg=MUTED,insertbackground=TEXT,relief='flat',height=4,font=('Consolas',9),state='disabled',wrap='word')
+        log = self.box(dash,'▣  로그',TEXT); log.grid(row=2,column=0,columnspan=2,sticky='nsew')
+        self.log_text = tk.Text(log,bg=PANEL,fg=MUTED,insertbackground=TEXT,relief='flat',height=2,font=('Consolas',9),state='disabled',wrap='word')
         self.log_text.pack(fill='both',expand=True,padx=10,pady=(0,10))
         self.candidate_tree = self.table(pages[1],[(key,title,width) for key,title,width in [candidates[0],candidates[1],candidates[4],candidates[2],*candidates[5:]]])
         self.candidate_tree.bind('<<TreeviewSelect>>',self.select_chart)
@@ -155,8 +170,9 @@ class Dashboard(engine.UpbitAutoTrader):
         self.refresh_history_views(); self.navigate(0)
 
     def navigate(self,index):
+        if index==1: index=0  # Candidate results live on the main dashboard.
         self.tabs.select(index)
-        for i,button in enumerate(self.nav_buttons): button.configure(bg=BLUE if i==index else '#09213f')
+        for i,button in enumerate(self.nav_buttons): button.configure(bg=BLUE if i==index else SIDEBAR,fg='white' if i==index else TEXT)
 
     def pump(self):
         super().pump()
@@ -225,7 +241,7 @@ class Dashboard(engine.UpbitAutoTrader):
         self.chart_data = None
         self.chart_error = '시세 조회 중…'
         self.chart_title.configure(text=f'{market[4:]} / KRW · 조회 중')
-        for key,button in self.interval_buttons.items(): button.configure(bg=BLUE if key==interval else '#123858')
+        for key,button in self.interval_buttons.items(): button.configure(bg=BLUE if key==interval else FIELD,fg='white' if key==interval else TEXT)
         self.draw_chart()
         def worker():
             data,error = None,''
@@ -256,7 +272,7 @@ class Dashboard(engine.UpbitAutoTrader):
         step = (right-left)/len(data)
         for i in range(5):
             yy = top+(price_bottom-top)*i/4
-            canvas.create_line(left,yy,right,yy,fill='#113353')
+            canvas.create_line(left,yy,right,yy,fill='#d8e2ec')
             value = high-(high-low)*i/4
             canvas.create_text(right+5,yy,text=fmt_num(value,0 if high>=100 else 2),anchor='w',fill=MUTED,font=('Segoe UI',8))
         vmax = max(max(r['volume'] for r in data),1e-10)
@@ -267,7 +283,7 @@ class Dashboard(engine.UpbitAutoTrader):
             canvas.create_rectangle(x-step*.32,min(y1,y2),x+step*.32,max(y1,y2)+1,fill=color,outline=color)
             vh=r['volume']/vmax*(bottom-price_bottom-15)
             canvas.create_rectangle(x-step*.32,bottom-vh,x+step*.32,bottom,fill=color,outline='')
-        for col,color in [('sma20','#f9ce37'),('sma50','#1ca8ff')]:
+        for col,color in [('sma20','#9b6400'),('sma50','#177aa8')]:
             points=[]
             for i,r in enumerate(data):
                 if math.isfinite(r[col]): points.extend((left+(i+.5)*step,y(r[col])))
@@ -282,7 +298,7 @@ class Dashboard(engine.UpbitAutoTrader):
 
 
 if __name__ == '__main__':
-    raise SystemExit('v1.8은 start.bat 또는 validation_app.py로 실행하세요. 이 구버전 진입점은 잠겨 있습니다.')
+    raise SystemExit('v1.8.1은 start.bat 또는 validation_app.py로 실행하세요. 이 구버전 진입점은 잠겨 있습니다.')
     import msvcrt
     lockfile = open(engine.BASE/'.instance.lock','a+b')
     lockfile.seek(0)

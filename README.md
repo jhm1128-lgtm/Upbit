@@ -1,11 +1,14 @@
 # Upbit
 
-업비트 가상매매 프로그램의 소스·배포 파일·검토 이력 저장소입니다. 현재 소스 버전은 **v1.8**이며 실거래 잠금 상태입니다. v1.8의 실제 운영 적용 여부/시각은 아직 확인되지 않았습니다.
+업비트 가상매매 프로그램의 소스·배포 파일·검토 이력 저장소입니다. 현재 소스 버전은 **v1.8.1** 화면 수정판이며 실거래 잠금 상태입니다. v1.8 실행은 사용자가 제공한 화면에서 확인했으며 정확한 시작 시각은 미확인입니다. v1.8.1 운영 적용은 별도입니다.
 
 ## 사용과 다운로드
+- 기존 v1.8 설치용: [v1.8.1 화면 업데이트 ZIP](releases/v1.8.1/Upbit_v1.8.1_UI_Update.zip)
+- 새 설치용: [v1.8.1 전체 프로젝트 ZIP](releases/v1.8.1/UpbitAutoTrading_v1.8.1_Full.zip)
 - 기존 v1.7 설치용: [v1.8 업데이트 ZIP](releases/v1.8/Upbit_v1.8_BearGuard_Update.zip)
-- 새 설치용: [v1.8 전체 프로젝트 ZIP](releases/v1.8/UpbitAutoTrading_v1.8_Full.zip)
-- [설치·정책·트레이 안내](docs/USER_GUIDE_v1.8.md), [시험 결과](VALIDATION.md), [배포 파일 해시](releases/manifest.json)
+- [v1.8.1 화면·트레이 안내](docs/USER_GUIDE_v1.8.1.md), [v1.8 매매 정책](docs/USER_GUIDE_v1.8.md), [시험 결과](VALIDATION.md), [배포 파일 해시](releases/manifest.json)
+
+밝은 화면과 큰 BULL/NORMAL/BEAR 상태 표시, 메인 매수후보/차트 확대 및 최소화 트레이를 반영했습니다. [합성 데이터 화면 예시](reports/20261030/preview.png)를 볼 수 있습니다.
 
 Windows Python 3.11 64bit 대상입니다. 직접 시험 환경은 Python 3.12.14입니다. `install.bat` 이후 `실행.vbs`로 실행합니다. 기존 사용자는 프로그램을 중지·종료하고 DB/설정을 백업한 뒤 업데이트 ZIP을 적용합니다.
 

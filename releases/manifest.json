@@ -23,5 +23,15 @@
     "path": "releases/v1.8/Upbit_v1.8_BearGuard_Update.zip",
     "bytes": 45751,
     "sha256": "8707b6ffc14c6638a66dc87ce80e355adbc1843ed78e9269c55527d1b3381318"
+  },
+  {
+    "path": "releases/v1.8.1/UpbitAutoTrading_v1.8.1_Full.zip",
+    "bytes": 81457,
+    "sha256": "7e4977dc0fb7bd2bd397f0f036ebdf61c8b1af293de1584539befd7ba74365cd"
+  },
+  {
+    "path": "releases/v1.8.1/Upbit_v1.8.1_UI_Update.zip",
+    "bytes": 46521,
+    "sha256": "94d44fd7ea700c5ee2893839e93b99ad8a9d847b55628743814ed055893016a7"
   }
 ]

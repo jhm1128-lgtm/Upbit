@@ -37,14 +37,14 @@ class MarketGuard:
     def __init__(self,clock=time.monotonic,policy=None):
         self.clock=clock; self.policy=copy.deepcopy(policy or POLICY)
         self.lock=threading.RLock(); self.updated=None; self.pending=None; self.count=0; self.frame=None
-        self.data=dict(state='unknown',reason='시장 판단 전',breadth=None,valid=0,expected=0,
+        self.data=dict(state='unknown',reason='시장 판단 전',breadth=None,rising=None,valid=0,expected=0,
                        confirmation_count=0,entry_allowed=False,size_factor=0.,position_cap=0)
 
     def invalidate(self,reason):
         with self.lock:
             self.updated=None; self.pending=None; self.count=0; self.frame=None
             self.data.update(state='unknown',reason=reason,entry_allowed=False,size_factor=0.,position_cap=0,
-                             confirmation_count=0)
+                             confirmation_count=0,breadth=None,rising=None)
             return dict(self.data)
 
     def assess(self,samples,expected,wall):
@@ -64,10 +64,11 @@ class MarketGuard:
             self.data.update(valid=len(valid),expected=expected,breadth=None)
             if expected<policy['minimum_candidates'] or len(valid)<policy['minimum_candidates'] or len(valid)/expected<policy['minimum_coverage']:
                 return self.invalidate('시장 판단 자료 부족 · 신규 진입 잠금')
-            breadth=sum(v['trend'] for v in valid)/len(valid)
+            rising=sum(v['trend'] for v in valid)
+            breadth=rising/len(valid)
             frame=min(candle_time(v['candle_stamp']) for v in valid)
             target='bear' if breadth<policy['bear_breadth'] else 'normal' if breadth>=policy['normal_breadth'] else 'cautious'
-            self.updated=now; self.data.update(breadth=breadth,frame=frame)
+            self.updated=now; self.data.update(breadth=breadth,rising=rising,frame=frame)
             current=self.data['state']
             if target=='bear':
                 self.pending=None; self.count=0; self.frame=frame
@@ -108,3 +109,12 @@ class MarketGuard:
         if result['order_krw']<5000: return None,'축소 주문금액이 최소 5,000원 미만'
         if position_count>=result['max_positions']: return None,'시장 상태별 최대 보유 도달'
         return result,''
+
+def market_counts_text(snapshot):
+    valid,expected=snapshot['valid'],snapshot['expected']
+    prefix=f'분석 가능 {valid}/{expected}'
+    if snapshot['breadth'] is None or not valid:
+        return prefix+' · 상승 추세 자료 없음'
+    rising=snapshot.get('rising')
+    if rising is None: rising=round(snapshot['breadth']*valid)
+    return prefix+f" · 상승 {rising}/{valid} ({snapshot['breadth']*100:.1f}%)"

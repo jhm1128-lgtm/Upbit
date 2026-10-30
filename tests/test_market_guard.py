@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from datetime import datetime,timezone
-from market_guard import MarketGuard,POLICY,shock_reason
+from market_guard import MarketGuard,POLICY,shock_reason,market_counts_text
 from risk_records import RiskBook,benchmark
 from paper import Records,Paper
 
@@ -61,6 +61,17 @@ class MarketGuardTests(unittest.TestCase):
     def test_bad_input_is_fail_closed(self):
         self.g.assess({'KRW-X':({},0)},['KRW-X'],NOW)
         self.assertFalse(self.g.snapshot()['entry_allowed'])
+
+    def test_rising_count_is_distinct_from_sample_coverage(self):
+        state=self.assess(up=1,n=14,expected=14)
+        self.assertEqual(state['rising'],1)
+        self.assertIn('분석 가능 14/14',market_counts_text(state))
+        self.assertIn('상승 1/14 (7.1%)',market_counts_text(state))
+        self.assertEqual(state['state'],'bear')
+
+    def test_invalidated_assessment_does_not_display_old_breadth(self):
+        self.ready(); self.g.invalidate('통신 확인 필요')
+        self.assertIn('자료 없음',market_counts_text(self.g.snapshot()))
 
 class ShockTests(unittest.TestCase):
     def test_normal(self): self.assertEqual(shock_reason(inputs(),101.),'')

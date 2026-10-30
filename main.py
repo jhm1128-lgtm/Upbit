@@ -43,7 +43,7 @@ request_api.requests = BoundedTransport
 
 DEFAULTS = dict(order_krw=150000, max_positions=3, stop_pct=3, target_pct=5,
                 trailing_pct=2, first_fraction=0.5, max_losses=3, top_n=15, poll_seconds=15)
-BG, PANEL, FIELD, TEXT, MUTED, ACCENT = '#0b1426', '#14223b', '#1b2e4b', '#e8efff', '#a7b9d6', '#45c9da'
+BG, PANEL, FIELD, TEXT, MUTED, ACCENT = '#edf3f8', '#f8fbff', '#e8eff7', '#19324d', '#526a82', '#006f99'
 
 
 def atomic_json(path, value):
@@ -89,7 +89,7 @@ class UpbitAutoTrader(legacy.UpbitAutoTrader):
         style.configure('TLabelframe', background=PANEL, bordercolor=FIELD)
         style.configure('TLabelframe.Label', foreground=ACCENT, background=PANEL)
         style.configure('TButton', background=FIELD, foreground=TEXT, padding=6)
-        style.map('TButton', background=[('active', '#28466b')])
+        style.map('TButton', background=[('active', '#d4e2f1')])
         style.configure('TCheckbutton', background=PANEL, foreground=TEXT)
         style.configure('TCheckbutton', indicatorbackground=FIELD, indicatorforeground=ACCENT)
         style.map('TCheckbutton', background=[('active', PANEL)])
@@ -100,7 +100,7 @@ class UpbitAutoTrader(legacy.UpbitAutoTrader):
                         rowheight=31, borderwidth=0)
         style.configure('Treeview.Heading', background=FIELD, foreground=ACCENT, padding=8)
         style.map('Treeview', background=[('selected', '#28517a')], foreground=[('selected', '#ffffff')])
-        style.map('Treeview.Heading', background=[('active', '#28466b')])
+        style.map('Treeview.Heading', background=[('active', '#d4e2f1')])
         style.configure('TCombobox', fieldbackground=FIELD, background=FIELD, foreground=TEXT)
         style.map('TCombobox', fieldbackground=[('readonly', FIELD)], foreground=[('readonly', TEXT)],
                   selectbackground=[('readonly', FIELD)], selectforeground=[('readonly', TEXT)])

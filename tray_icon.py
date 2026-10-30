@@ -8,7 +8,7 @@ from ctypes import wintypes as w
 class TrayIcon:
     def __init__(self,path):
         self.path=str(path); self.available=False; self.failed=False; self.hwnd=None; self.error=None
-        self.queue=queue.Queue(); self.thread=None; self._tooltip='업비트 v1.8 · 가상매매 중지 상태'
+        self.queue=queue.Queue(); self.thread=None; self._tooltip='업비트 v1.8.1 · 가상매매 중지 상태'
 
     def actions(self):
         result=[]

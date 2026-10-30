@@ -11,6 +11,7 @@ from network_guard import NetworkGuard
 from market_data import MarketDataError
 from market_guard import MarketGuard
 import time
+from types import SimpleNamespace
 from datetime import timedelta
 
 TIME='2026-10-22T09:00:00+09:00'
@@ -25,7 +26,11 @@ class AppTests(unittest.TestCase):
         self.t=0
         self.a.network=NetworkGuard(self.a.network_event,clock=lambda:self.t,wall=lambda:TIME)
     def tearDown(self):
-        self.root.destroy(); self.env.stop(); self.patcher.stop(); self.tmp.cleanup(); self.tray_patch.stop()
+        self.destroy_root(self.root); self.env.stop(); self.patcher.stop(); self.tmp.cleanup(); self.tray_patch.stop()
+    def destroy_root(self,root):
+        for timer in root.tk.call('after','info'): root.after_cancel(timer)
+        root.update_idletasks()
+        root.destroy()
     def signal(self,age=300):
         return dict(rsi=55.,trend=True,candle_stamp=(main.now_kst()-timedelta(seconds=age)).isoformat(),
                     candle_move=.01,candle_high=102.,candle_low=99.,previous_close=100.,closed_price=100.,
@@ -65,7 +70,7 @@ class AppTests(unittest.TestCase):
         out=self.base/'test.zip'; export_bundle(self.a.records,out)
         with zipfile.ZipFile(out) as z:
             self.assertIn('network_events.csv',z.namelist()); self.assertIn('health_checks.csv',z.namelist())
-            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.8')
+            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.8.1')
             self.assertIn('market_checks.csv',z.namelist()); self.assertIn('entry_decisions.csv',z.namelist())
             self.assertIn('benchmark_v18.sqlite3',z.namelist())
             self.assertFalse(any(n.endswith('.env') for n in z.namelist()))
@@ -90,7 +95,7 @@ class AppTests(unittest.TestCase):
             restored=ValidationApp(newroot)
             self.assertEqual(restored.paper.state,state)
             self.assertFalse(restored.network.can_enter())
-        finally: newroot.destroy()
+        finally: self.destroy_root(newroot)
 
     def test_full_loop_insufficient_market_sample_blocks_entries(self):
         a=self.a
@@ -137,6 +142,53 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.root.state(),'withdrawn')
         self.a.tray.queue.put('show'); self.a.pump()
         self.assertNotEqual(self.root.state(),'withdrawn')
+
+    def test_minimize_hides_to_tray_without_stopping_worker(self):
+        self.a.tray.available=True; self.a.running=True
+        with patch.object(self.root,'state',return_value='iconic'), patch.object(self.root,'withdraw') as hide:
+            self.a.hide_minimized_window(); hide.assert_called_once()
+        self.assertTrue(self.a.running); self.assertFalse(self.a.stop_event.is_set())
+
+    def test_minimize_without_tray_retains_window(self):
+        self.a.tray.available=False
+        with patch.object(self.root,'state',return_value='iconic'), patch.object(self.root,'withdraw') as hide:
+            self.a.hide_minimized_window(); hide.assert_not_called()
+
+    def test_child_unmap_does_not_hide_root(self):
+        with patch.object(self.root,'after_idle') as idle:
+            self.a.on_window_unmap(SimpleNamespace(widget=self.a.dash_position_tree))
+            idle.assert_not_called()
+
+    def test_dashboard_allocates_more_height_to_candidates(self):
+        self.a.closed=True  # Prevent chart HTTP callbacks during the layout-only render.
+        self.root.geometry('1536x1000'); self.root.deiconify(); self.root.update()
+        self.assertGreater(self.a.dash_candidate_tree.winfo_height(),self.a.dash_position_tree.winfo_height())
+        self.assertLessEqual(int(self.a.dash_position_tree['height']),6)
+        self.assertEqual(self.a.dashboard_page.grid_rowconfigure(1)['weight'],0)
+
+    def test_market_badge_and_counts_show_current_bear_state(self):
+        samples={f'KRW-{i}':(dict(self.signal(),trend=i==0),time.monotonic()) for i in range(14)}
+        self.a.regime.assess(samples,list(samples),main.now_kst().timestamp())
+        self.a.pump()
+        self.assertEqual(self.a.market_badge.cget('text'),'BEAR · 약세')
+        self.assertIn('상승 1/14 (7.1%)',self.a.market_label.cget('text'))
+
+    def test_fee_display_stays_positive_and_does_not_change_pnl(self):
+        self.a.paper.state['fees']=18570.; self.a.paper.state['realized']=-77922.
+        self.a.pump()
+        text=self.a.today_label.cget('text')
+        self.assertIn('누적 수수료 18,570원',text)
+        self.assertIn('-77,922원',text)
+        self.assertEqual(self.a.paper.state['realized'],-77922.)
+
+    def test_candidate_menu_removed_other_navigation_kept(self):
+        self.assertEqual(self.a.tabs.tab(1,'state'),'hidden')
+        self.assertEqual(self.a.nav_buttons[1].winfo_manager(),'')
+        self.a.navigate(1)
+        self.assertEqual(self.a.tabs.index(self.a.tabs.select()),0)
+        for page in (2,3,4,5,6,7):
+            self.a.navigate(page)
+            self.assertEqual(self.a.tabs.index(self.a.tabs.select()),page)
 
     def test_market_unknown_blocks_buy_even_with_network_ready(self):
         self.ready(); self.a.regime.invalidate('자료 부족')
