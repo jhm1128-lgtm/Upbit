@@ -33,5 +33,15 @@
     "path": "releases/v1.8.1/Upbit_v1.8.1_UI_Update.zip",
     "bytes": 46521,
     "sha256": "94d44fd7ea700c5ee2893839e93b99ad8a9d847b55628743814ed055893016a7"
+  },
+  {
+    "path": "releases/v1.8.2/UpbitAutoTrading_v1.8.2_Full.zip",
+    "bytes": 92884,
+    "sha256": "838f4d8b6b1816f75c1a2bf1e2070ed014bbf7f0634443b45c25b29ccd259c8d"
+  },
+  {
+    "path": "releases/v1.8.2/Upbit_v1.8.2_UI_Update.zip",
+    "bytes": 64386,
+    "sha256": "99da5e7f40c60fd38807f729dcf154c27680d28b638319a1a04f2e8cb53dfa0d"
   }
 ]

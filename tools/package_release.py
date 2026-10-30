@@ -13,7 +13,9 @@ for p in files:
 guide=root/'docs'/f'USER_GUIDE_{version}.md'
 assert guide.exists(),guide
 patch_files=['validation_app.py','dashboard.py','main.py','market_guard.py','tray_icon.py','VERSION','VALIDATION.md',
-             'tests/test_app.py','tests/test_market_guard.py','tests/test_network.py']
+             'trade_history.py','ui_widgets.py','log_view.py',
+             'tests/test_app.py','tests/test_market_guard.py','tests/test_network.py','tests/test_history_tools.py']
+patch_files += [p.relative_to(root).as_posix() for p in (root/'docs').glob('USER_GUIDE_*.md')]
 outcomes=[]
 for full in (True,False):
     out=target/(f'UpbitAutoTrading_{version}_Full.zip' if full else f'Upbit_{version}_UI_Update.zip')
@@ -22,9 +24,9 @@ for full in (True,False):
         for p in files if full else [root/name for name in patch_files]:
             z.write(p,prefix+p.relative_to(root).as_posix())
         instructions=guide.read_text(encoding='utf-8')
-        if full:
-            instructions=instructions.replace('](USER_GUIDE_v1.8.md)','](docs/USER_GUIDE_v1.8.md)')
-            instructions=instructions.replace('](../VALIDATION.md)','](VALIDATION.md)')
+        for userguide in (root/'docs').glob('USER_GUIDE_*.md'):
+            instructions=instructions.replace(f']({userguide.name})',f'](docs/{userguide.name})')
+        instructions=instructions.replace('](../VALIDATION.md)','](VALIDATION.md)')
         z.writestr(prefix+('README.md' if full else f'README_{version}.md'),instructions)
     with zipfile.ZipFile(out) as z:
         assert z.testzip() is None

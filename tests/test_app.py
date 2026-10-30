@@ -13,6 +13,9 @@ from market_guard import MarketGuard
 import time
 from types import SimpleNamespace
 from datetime import timedelta
+from datetime import date
+from ui_widgets import DatePicker,autofit_column,autofit_separator
+from trade_history import net_return_pct
 
 TIME='2026-10-22T09:00:00+09:00'
 
@@ -70,7 +73,7 @@ class AppTests(unittest.TestCase):
         out=self.base/'test.zip'; export_bundle(self.a.records,out)
         with zipfile.ZipFile(out) as z:
             self.assertIn('network_events.csv',z.namelist()); self.assertIn('health_checks.csv',z.namelist())
-            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.8.1')
+            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.8.2')
             self.assertIn('market_checks.csv',z.namelist()); self.assertIn('entry_decisions.csv',z.namelist())
             self.assertIn('benchmark_v18.sqlite3',z.namelist())
             self.assertFalse(any(n.endswith('.env') for n in z.namelist()))
@@ -186,9 +189,54 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.a.nav_buttons[1].winfo_manager(),'')
         self.a.navigate(1)
         self.assertEqual(self.a.tabs.index(self.a.tabs.select()),0)
-        for page in (2,3,4,5,6,7):
+        self.assertEqual(self.a.tabs.tab(2,'state'),'hidden')
+        self.assertEqual(self.a.nav_buttons[2].winfo_manager(),'')
+        self.a.navigate(2); self.assertEqual(self.a.tabs.index(self.a.tabs.select()),0)
+        for page in (3,4,5,6,7):
             self.a.navigate(page)
             self.assertEqual(self.a.tabs.index(self.a.tabs.select()),page)
+
+    def test_ledger_roi_column_and_exact_market_selection(self):
+        entry=self.a.paper.buy('KRW-XRP',100,self.a.config,TIME)
+        event=self.a.paper.sell('KRW-XRP',104,entry['qty']/2,'1차 익절',TIME)
+        self.a.paper.buy('KRW-XRPL',100,self.a.config,TIME)
+        self.a.history_market.set('xrp'); self.a.refresh_ledger()
+        columns=list(self.a.ledger_tree['columns'])
+        self.assertEqual(columns[columns.index('pnl')+1],'return_pct')
+        rows=self.a.ledger_tree.get_children(); self.assertEqual(len(rows),2)
+        self.assertTrue(all(self.a.ledger_tree.set(i,'market')=='KRW-XRP' for i in rows))
+        self.assertEqual(self.a.ledger_tree.set(rows[0],'return_pct'),f'{net_return_pct(event):+.2f}%')
+        self.assertIn('KRW-XRP',self.a.history_market_combo['values'])
+        self.assertIn('종목: KRW-XRP',self.a.ledger_summary.cget('text'))
+
+    def test_auto_width_shrinks_and_grows_with_text(self):
+        tree=self.a.ledger_tree; tree.insert('','end',iid='sizing',values=('1',TIME,'매수','KRW-XRP'))
+        tree.column('market',width=700)
+        small=autofit_column(tree,'market'); self.assertLess(small,700)
+        tree.set('sizing','market','긴 종목 표시 '*40)
+        large=autofit_column(tree,'market'); self.assertGreater(large,small); self.assertLessEqual(large,760)
+        with patch.object(tree,'identify_region',return_value='separator'),patch.object(tree,'identify_column',return_value='#4'):
+            self.assertEqual(autofit_separator(tree,SimpleNamespace(x=100,y=10)),'break')
+
+    def test_calendar_year_month_navigation_and_date_selection(self):
+        self.a.closed=True; self.root.deiconify(); self.root.update()
+        selected=tk.StringVar(value='2024-02-29')
+        with patch.object(self.a,'refresh_ledger') as callback:
+            picker=DatePicker(self.root,selected,today=date(2026,10,30),on_select=callback)
+            picker.move(12); self.assertEqual((picker.year,picker.month),(2025,2))
+            picker.key_move(-12); self.assertEqual((picker.year,picker.month),(2024,2))
+            picker.choose(29); callback.assert_called_once()
+        self.assertEqual(selected.get(),'2024-02-29')
+
+    def test_log_tab_reads_all_pages_and_preserves_older_page(self):
+        with self.a.records.db() as db:
+            db.executemany('INSERT INTO logs(stamp,kind,message) VALUES(?,?,?)',[(TIME,'info',f'history-test {i}') for i in range(202)])
+        panel=self.a.log_panel; panel.keyword.set('history-test'); self.a.navigate(6)
+        self.assertEqual(len(panel.rows),200); self.assertTrue(panel.more)
+        panel.next(); self.assertEqual(len(panel.rows),2); self.assertEqual(len(panel.anchors),2)
+        ids=[r[0] for r in panel.rows]; self.a.pump()
+        self.assertEqual([r[0] for r in panel.rows],ids)
+        panel.previous(); self.assertEqual(len(panel.rows),200)
 
     def test_market_unknown_blocks_buy_even_with_network_ready(self):
         self.ready(); self.a.regime.invalidate('자료 부족')

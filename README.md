@@ -1,12 +1,14 @@
 # Upbit
 
-업비트 가상매매 프로그램의 소스·배포 파일·검토 이력 저장소입니다. 현재 소스 버전은 **v1.8.1** 화면 수정판이며 실거래 잠금 상태입니다. v1.8 실행은 사용자가 제공한 화면에서 확인했으며 정확한 시작 시각은 미확인입니다. v1.8.1 운영 적용은 별도입니다.
+업비트 가상매매 프로그램의 소스·배포 파일·검토 이력 저장소입니다. 현재 소스 버전은 **v1.8.2** 조회 화면 수정판이며 실거래 잠금 상태입니다. v1.8 계열의 기존 관찰 기록을 이어갑니다. 소스 제작과 실제 운영 적용 시각은 구분합니다.
 
 ## 사용과 다운로드
-- 기존 v1.8 설치용: [v1.8.1 화면 업데이트 ZIP](releases/v1.8.1/Upbit_v1.8.1_UI_Update.zip)
-- 새 설치용: [v1.8.1 전체 프로젝트 ZIP](releases/v1.8.1/UpbitAutoTrading_v1.8.1_Full.zip)
+- 기존 v1.8/v1.8.1 설치용: [v1.8.2 조회 화면 업데이트 ZIP](releases/v1.8.2/Upbit_v1.8.2_UI_Update.zip)
+- 새 설치용: [v1.8.2 전체 프로젝트 ZIP](releases/v1.8.2/UpbitAutoTrading_v1.8.2_Full.zip)
 - 기존 v1.7 설치용: [v1.8 업데이트 ZIP](releases/v1.8/Upbit_v1.8_BearGuard_Update.zip)
-- [v1.8.1 화면·트레이 안내](docs/USER_GUIDE_v1.8.1.md), [v1.8 매매 정책](docs/USER_GUIDE_v1.8.md), [시험 결과](VALIDATION.md), [배포 파일 해시](releases/manifest.json)
+- [v1.8.2 거래내역·달력·누적 로그 안내](docs/USER_GUIDE_v1.8.2.md), [v1.8.1 화면·트레이 안내](docs/USER_GUIDE_v1.8.1.md), [v1.8 매매 정책](docs/USER_GUIDE_v1.8.md), [시험 결과](VALIDATION.md), [배포 파일 해시](releases/manifest.json)
+
+가상 보유는 대시보드로 통합하고 거래내역 수익률·종목 필터·날짜 달력·열 자동 맞춤·누적 로그를 추가했습니다. [조회 화면 예시](reports/20261030/UI_REVIEW_v182.md)는 합성 데이터입니다.
 
 밝은 화면과 큰 BULL/NORMAL/BEAR 상태 표시, 메인 매수후보/차트 확대 및 최소화 트레이를 반영했습니다. [합성 데이터 화면 예시](reports/20261030/preview.png)를 볼 수 있습니다.
 

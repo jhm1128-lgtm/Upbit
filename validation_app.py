@@ -16,7 +16,9 @@ import dashboard
 import main
 from main import pyupbit,pd,now_kst,fmt_num
 from paper import Records,Paper
-from trade_history import read_history,write_history,CATEGORIES,category
+from trade_history import read_history,write_history,CATEGORIES,category,history_markets,normalize_market,net_return_pct
+from ui_widgets import date_field,autofit_column
+from log_view import LogPanel
 from daily_profit import daily_results,write_daily
 from activity import activity_state
 from market_guard import MarketGuard,POLICY,shock_reason,candle_time,market_counts_text
@@ -51,14 +53,14 @@ class ValidationApp(dashboard.Dashboard):
         self.last_equity=0
         self.record_error=False
         super().__init__(root)
-        root.title('UPBIT AUTO TRADING v1.8.1 · 가상매매 / 기록 검증 전용')
+        root.title('UPBIT AUTO TRADING v1.8.2 · 가상매매 / 기록 검증 전용')
         self.live_enabled.set(False); self.live_event.clear()
         self.mode_var.set('가상매매 · 실거래 잠금')
         self.balance_text=f"가상 {self.paper.state['cash']:,.0f}원"
         self.safety_text='가상 검증 전용 · 실제 주문 없음'
         self.render_positions(copy.deepcopy(self.paper.state['positions']))
-        self.records.log(stamp(),'session','v1.8.1 실행 · 가상 잔고/보유 복구')
-        self.network_event('validation_segment',dict(version='1.8.1',run_id=self.run_id,
+        self.records.log(stamp(),'session','v1.8.2 실행 · 가상 잔고/보유 복구')
+        self.network_event('validation_segment',dict(version='1.8.2',run_id=self.run_id,
             settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,note='기존 잔고/기록 유지, 새 통신 검증 구간'))
         self.sync_trade_csv()
         self.refresh_ledger()
@@ -96,6 +98,9 @@ class ValidationApp(dashboard.Dashboard):
         # Keep the internal source table for renderer compatibility; remove its UI entry.
         self.tabs.hide(1)
         self.nav_buttons[1].pack_forget()
+        self.tabs.hide(2)
+        self.nav_buttons[2].pack_forget()
+        self.log_panel=LogPanel(self,self.tabs.nametowidget(self.tabs.tabs()[6]))
         self.build_activity_signal()
         self.network_label=tk.Label(self.tabs.master,bg=dashboard.BG,fg=dashboard.RED,anchor='w',wraplength=1100,
             text='통신 확인 전 · 신규 가상매수 잠금')
@@ -212,28 +217,34 @@ class ValidationApp(dashboard.Dashboard):
         tk.Label(head,text='가상 매수 · 매도 · 손절 · 익절 기록',bg=dashboard.BG,fg=dashboard.CYAN,
                  font=('맑은 고딕',13,'bold')).pack(side='left')
         ttk.Button(head,text='기존 실거래 기록 보기 / 숨기기',command=self.toggle_legacy_history).pack(side='right')
+        ttk.Button(head,text='열 너비 자동 맞춤',command=lambda:[autofit_column(self.ledger_tree,c) for c in self.ledger_tree['columns']]).pack(side='right',padx=8)
         controls=tk.Frame(page,bg=dashboard.BG); controls.pack(fill='x',padx=12,pady=6)
         self.history_filter=tk.StringVar(value='전체')
         select=ttk.Combobox(controls,textvariable=self.history_filter,values=CATEGORIES,state='readonly',width=13)
         select.pack(side='left',padx=(0,8)); select.bind('<<ComboboxSelected>>',lambda _:self.refresh_ledger())
-        self.history_market=tk.StringVar()
+        self.history_market=tk.StringVar(value='전체')
         ttk.Label(controls,text='종목').pack(side='left')
-        ttk.Entry(controls,textvariable=self.history_market,width=12).pack(side='left',padx=6)
+        self.history_market_combo=ttk.Combobox(controls,textvariable=self.history_market,width=20,values=['전체'])
+        self.history_market_combo.pack(side='left',padx=6)
+        self.history_market_combo.bind('<<ComboboxSelected>>',lambda _:self.refresh_ledger())
+        self.history_market_combo.bind('<Return>',lambda _:self.refresh_ledger())
+        ttk.Label(controls,text='목록에서 선택 또는 XRP / KRW-XRP 입력').pack(side='left',padx=8)
+        dates=ttk.Frame(page); dates.pack(fill='x',padx=12,pady=6)
         self.history_from=tk.StringVar(); self.history_to=tk.StringVar()
-        for label,var in [('시작일',self.history_from),('종료일',self.history_to)]:
-            ttk.Label(controls,text=label).pack(side='left',padx=5)
-            ttk.Entry(controls,textvariable=var,width=11).pack(side='left')
-        ttk.Button(controls,text='조회',command=self.refresh_ledger).pack(side='left',padx=8)
-        ttk.Button(controls,text='전체 보기',command=self.reset_ledger).pack(side='left')
+        for label,var in [('시작일(포함)',self.history_from),('종료일(포함)',self.history_to)]:
+            date_field(dates,var,label,self.refresh_ledger,today=lambda:now_kst().date()).pack(side='left')
+        ttk.Button(dates,text='조회',command=self.refresh_ledger,style='Accent.TButton').pack(side='left',padx=8)
+        ttk.Button(dates,text='기간 지우기',command=self.clear_history_dates).pack(side='left',padx=5)
+        ttk.Button(dates,text='전체 보기',command=self.reset_ledger).pack(side='left',padx=5)
         self.ledger_summary=tk.Label(page,bg=dashboard.BG,fg=dashboard.TEXT,anchor='w',justify='left')
         self.ledger_summary.pack(fill='x',padx=12,pady=8)
         self.ledger_empty=tk.Label(page,bg=dashboard.BG,fg=dashboard.MUTED,anchor='w',justify='left',
-            text='발생한 가상 거래만 표시합니다. 신호가 없으면 기록도 없습니다. 날짜는 YYYY-MM-DD 형식입니다.\n'
-                 'paper_trades.csv 자동 저장 · 트레일링은 손실 종료일 수도 있으며, 익절 전체는 실현손익이 양수인 매도입니다.')
+            text='날짜 칸/달력 버튼을 눌러 선택하세요. 시작일·종료일 모두 포함하며 비어 있으면 해당 경계를 제한하지 않습니다.\n'
+                 '열 제목 사이 경계를 더블클릭하면 내용에 맞춥니다. 매도 수익률은 배분 매수원가·양쪽 수수료를 반영하며 매수는 —입니다.')
         self.ledger_empty.pack(fill='x',padx=12,pady=4)
         self.ledger_tree=self.table(page,[(k,t,w) for k,t,w in [('id','번호',50),('stamp','일시 (KST)',180),
             ('category','거래 유형',100),('market','종목',95),('price','가상 체결가',115),('qty','수량',110),
-            ('funds','금액',100),('fee','수수료',85),('pnl','실현손익',100),('reason','사유',150)]])
+            ('funds','금액',100),('fee','수수료',85),('pnl','실현손익',100),('return_pct','수익률 (%)',100),('reason','사유',150)]])
         self.ledger_tree.tag_configure('buy',foreground=dashboard.CYAN)
         self.ledger_tree.tag_configure('stop',foreground=dashboard.RED)
         self.ledger_tree.tag_configure('sell',foreground=dashboard.GREEN)
@@ -243,8 +254,15 @@ class ValidationApp(dashboard.Dashboard):
         else: self.old_trade_wrap.pack(fill='both',expand=True)
 
     def reset_ledger(self):
-        self.history_filter.set('전체'); self.history_market.set(''); self.history_from.set(''); self.history_to.set('')
+        self.history_filter.set('전체'); self.history_market.set('전체'); self.history_from.set(''); self.history_to.set('')
         self.refresh_ledger()
+
+    def clear_history_dates(self):
+        self.history_from.set(''); self.history_to.set(''); self.refresh_ledger()
+
+    def navigate(self,index):
+        super().navigate(index)
+        if index==6 and hasattr(self,'log_panel'): self.log_panel.refresh(keep_page=True)
 
     def refresh_ledger(self):
         from datetime import date
@@ -256,13 +274,16 @@ class ValidationApp(dashboard.Dashboard):
         except ValueError:
             messagebox.showerror('날짜 확인','날짜는 YYYY-MM-DD로 입력하고 시작일을 종료일 이전으로 지정하세요.'); return
         rows,s=read_history(self.records,self.history_filter.get(),self.history_market.get(),start,end)
+        self.history_market_combo['values']=['전체']+history_markets(self.records)
         self.ledger_tree.delete(*self.ledger_tree.get_children())
         for e in rows:
             self.ledger_tree.insert('','end',iid=str(e['record_id']),values=(e['record_id'],e['stamp'],e['category'],e['market'],
                 fmt_num(e['price'],4),fmt_num(e['qty'],8),fmt_num(e['funds'],2),fmt_num(e['fee'],2),
-                '—' if e['side']=='BUY' else fmt_num(e['pnl'],2),e['reason']),
+                '—' if e['side']=='BUY' else fmt_num(e['pnl'],2),
+                '—' if e['return_pct'] is None else f"{e['return_pct']:+.2f}%",e['reason']),
                 tags=('buy',) if e['side']=='BUY' else ('stop',) if e['category']=='손절' else ('sell',))
-        self.ledger_summary.configure(text=f"조회 {s['count']}건 · 매수 {s['buys']} · 매도 {s['sells']} · 손절 {s['stops']} · 1차 익절 {s['targets']} · 트레일링 {s['trailing']}\n"
+        self.ledger_summary.configure(text=f"종목: {normalize_market(self.history_market.get()) or '전체'} · 기간: {start or '제한 없음'} ~ {end or '제한 없음'} (양끝 날짜 포함)\n"
+            f"조회 {s['count']}건 · 매수 {s['buys']} · 매도 {s['sells']} · 손절 {s['stops']} · 1차 익절 {s['targets']} · 트레일링 {s['trailing']}\n"
             f"수수료 {s['fees']:,.2f}원 · 실현손익 {s['pnl']:+,.2f}원 · 최근 {len(rows)}건 표시 / CSV에는 전체 저장")
 
     def sync_trade_csv(self):
@@ -282,10 +303,10 @@ class ValidationApp(dashboard.Dashboard):
 
     def on_live_toggle(self):
         self.live_enabled.set(False); self.live_event.clear()
-        messagebox.showinfo('실거래 잠금','v1.8.1은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
+        messagebox.showinfo('실거래 잠금','v1.8.2은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
 
     def execute(self,*args,**kwargs):
-        raise RuntimeError('v1.8.1은 실제 주문을 허용하지 않습니다')
+        raise RuntimeError('v1.8.2은 실제 주문을 허용하지 않습니다')
 
     def update_mode(self):
         self.mode_var.set('가상매매 · 실거래 잠금')
@@ -310,7 +331,7 @@ class ValidationApp(dashboard.Dashboard):
         self.network=NetworkGuard(self.network_event)
         self.regime=MarketGuard()
         self.run_id=stamp()
-        self.network_event('validation_segment',dict(version='1.8.1',run_id=self.run_id,
+        self.network_event('validation_segment',dict(version='1.8.2',run_id=self.run_id,
             settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,note='시작 버튼 · 새 통신 확인 구간'))
         self.live_event.clear()
         super().start()
@@ -454,7 +475,7 @@ class ValidationApp(dashboard.Dashboard):
                 try:
                     if not self.manage_positions(): raise MarketDataError('보유 시세 확인 실패')
                     scan=self.records.start_scan(stamp(),dict({k:self.config[k] for k in main.DEFAULTS},
-                        version='1.8.1',run_id=self.run_id,risk_policy=POLICY))
+                        version='1.8.2',run_id=self.run_id,risk_policy=POLICY))
                     self.current_scan=scan; self.scan_text='시장 판단을 위한 전체 후보 조회 중'
                     markets=self.get_candidates(); self.network.confirm_cycle()
                     staged=[]; samples={}
@@ -570,7 +591,7 @@ class ValidationApp(dashboard.Dashboard):
         display,action,foreground,background=dashboard.market_presentation(market['state'])
         self.market_badge.configure(text=display,fg=foreground,bg=background)
         if self.tray:
-            self.tray.status(f"업비트 v1.8.1 · {'실행 중' if self.running else '중지됨'} · {display}")
+            self.tray.status(f"업비트 v1.8.2 · {'실행 중' if self.running else '중지됨'} · {display}")
         counts=market_counts_text(market)
         self.market_label.configure(text=f"후보군 기준 · {counts} · {action}\n{market['reason']} · {self.risk.daily['reason']}",
             wraplength=max(400,self.market_strip.winfo_width()-self.market_badge.winfo_reqwidth()-20))
@@ -599,6 +620,9 @@ class ValidationApp(dashboard.Dashboard):
         if time.monotonic()-getattr(self,'last_daily_refresh',0)>=15:
             self.refresh_profit_view()
             self.last_daily_refresh=time.monotonic()
+        if (hasattr(self,'log_panel') and self.tabs.index(self.tabs.select())==6
+            and len(self.log_panel.anchors)==1 and time.monotonic()-getattr(self,'last_log_refresh',0)>=5):
+            self.log_panel.refresh(keep_page=True); self.last_log_refresh=time.monotonic()
 
     def export_records(self):
         if self.worker and self.worker.is_alive():
@@ -622,7 +646,7 @@ def export_bundle(records,path):
             counts={t:db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('scans','observations','trades','logs','quotes','equity','candles','network_events','health_checks','market_checks','entry_decisions','risk_days') if t in tables}
             span=db.execute('SELECT MIN(started),MAX(ended) FROM scans').fetchone()
             state=json.loads(db.execute('SELECT payload FROM state WHERE id=1').fetchone()[0])
-            report=dict(risk_policy=POLICY,version='1.8.1',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
+            report=dict(risk_policy=POLICY,version='1.8.2',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
                 simulation_only=True,initial_cash=state['initial_cash'],cash=state['cash'],realized_pnl=state['realized'],
                 fees=state['fees'],positions=state['positions'],closed=state['closed'],wins=state['wins'],
                 fee_rate=state['fee'],slippage_bps=state['slippage_bps'],
@@ -658,10 +682,10 @@ def export_bundle(records,path):
                     finally: rb.close()
                 daily={}
                 with io.TextIOWrapper(z.open('paper_trades.csv','w'),encoding='utf-8-sig',newline='') as output:
-                    fields=['record_id','category','stamp','side','market','quote','price','qty','funds','fee','pnl','reason','simulation']
+                    fields=['record_id','category','stamp','side','market','quote','price','qty','funds','fee','pnl','return_pct','reason','simulation']
                     writer=csv.DictWriter(output,fieldnames=fields); writer.writeheader()
                     for rid,payload in db.execute('SELECT id,payload FROM trades ORDER BY id'):
-                        event=json.loads(payload); writer.writerow(dict(event,record_id=rid,category=category(event)))
+                        event=json.loads(payload); writer.writerow(dict(event,record_id=rid,category=category(event),return_pct=net_return_pct(event)))
                         day=event['stamp'][:10]
                         d=daily.setdefault(day,dict(date=day,buys=0,sells=0,fees=0.,realized_pnl=0.))
                         d['buys' if event['side']=='BUY' else 'sells']+=1
