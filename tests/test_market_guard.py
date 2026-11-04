@@ -73,6 +73,13 @@ class MarketGuardTests(unittest.TestCase):
         self.ready(); self.g.invalidate('통신 확인 필요')
         self.assertIn('자료 없음',market_counts_text(self.g.snapshot()))
 
+    def test_search_count_and_stable_exclusion_are_separate(self):
+        samples={f'KRW-{i}':(inputs(trend=i<11),self.t) for i in range(14)}
+        state=self.g.assess(samples,list(samples)+['KRW-USDT'],NOW)
+        self.assertIn('검색 15 · 스테이블 1 제외',market_counts_text(state))
+        self.assertIn('분석 가능 14/14',market_counts_text(state))
+        self.assertIn('상승 11/14 (78.6%)',market_counts_text(state))
+
 class ShockTests(unittest.TestCase):
     def test_normal(self): self.assertEqual(shock_reason(inputs(),101.),'')
     def test_blast_historical_crash_rejected(self):

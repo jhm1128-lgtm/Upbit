@@ -22,6 +22,7 @@ from log_view import LogPanel
 from daily_profit import daily_results,write_daily
 from activity import activity_state
 from market_guard import MarketGuard,POLICY,shock_reason,candle_time,market_counts_text
+from capital import CAPITAL_POLICY,allocation_plan
 from risk_records import RiskBook,benchmark
 from tray_icon import TrayIcon
 from network_guard import NetworkGuard
@@ -47,21 +48,25 @@ class ValidationApp(dashboard.Dashboard):
         self.regime=MarketGuard()
         self.reference=benchmark(self.records,main.BASE/'benchmark_v18.sqlite3',stamp(),self.paper.state)
         self.last_risk_mark=None
+        self.funding_quotes={}; self.last_funding_quote=None
+        self.capital_info=dict(equity=None,reason='보유 평가 시세 확인 전',entry_allowed=False,order_krw=0.,new_slots=0)
         self.tray=None
         self.exiting=False
         self.current_scan=None
         self.last_equity=0
         self.record_error=False
         super().__init__(root)
-        root.title('UPBIT AUTO TRADING v1.8.2 · 가상매매 / 기록 검증 전용')
+        self.initialize_capital_policy()
+        root.title('UPBIT AUTO TRADING v1.9 · 가상매매 / 기록 검증 전용')
         self.live_enabled.set(False); self.live_event.clear()
         self.mode_var.set('가상매매 · 실거래 잠금')
         self.balance_text=f"가상 {self.paper.state['cash']:,.0f}원"
         self.safety_text='가상 검증 전용 · 실제 주문 없음'
         self.render_positions(copy.deepcopy(self.paper.state['positions']))
-        self.records.log(stamp(),'session','v1.8.2 실행 · 가상 잔고/보유 복구')
-        self.network_event('validation_segment',dict(version='1.8.2',run_id=self.run_id,
-            settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,note='기존 잔고/기록 유지, 새 통신 검증 구간'))
+        self.records.log(stamp(),'session','v1.9 실행 · 가상 잔고/보유 복구')
+        self.network_event('validation_segment',dict(version='1.9',run_id=self.run_id,
+            settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,capital_policy=CAPITAL_POLICY,
+            reference_settings=self.reference_config,note='기존 잔고/기록 유지, 새 통신 검증 구간'))
         self.sync_trade_csv()
         self.refresh_ledger()
         self.tray=TrayIcon(main.BASE/'bitcoin.ico')
@@ -113,6 +118,44 @@ class ValidationApp(dashboard.Dashboard):
         self.market_label=tk.Label(self.market_strip,bg=dashboard.BG,fg=dashboard.TEXT,anchor='w',justify='left',wraplength=950,
             text='시장 판단 전 · 신규 진입 잠금')
         self.market_label.pack(side='left',fill='x',expand=True)
+        self.capital_label=tk.Label(self.tabs.master,bg=dashboard.BG,fg=dashboard.MUTED,anchor='w',wraplength=1200,
+            text='총 평가자산/예수금 확인 전 · 최소 20% 현금 · 종목당 최소 15만원')
+        self.capital_label.pack(before=self.tabs,fill='x',padx=4,pady=(0,3))
+
+    def initialize_capital_policy(self):
+        seed=self.reference.state['benchmark_seed']
+        if 'settings' not in seed:
+            restored=copy.deepcopy(self.reference.state)
+            restored['benchmark_seed']['settings']={k:self.config[k] for k in main.DEFAULTS}
+            restored['benchmark_seed']['settings']['max_positions']=min(3,int(self.config['max_positions']))
+            self.reference.records.commit(restored); self.reference.state=restored
+        self.reference_config=dict(self.reference.state['benchmark_seed']['settings'])
+        if self.paper.state.get('capital_policy_migration')!=1:
+            self.config['max_positions']=5
+            self.config['order_krw']=max(150000.,float(self.config['order_krw']))
+            main.atomic_json(main.BASE/'settings.json',self.config)
+            self.setting_vars['max_positions'].set(str(self.config['max_positions']))
+            self.setting_vars['order_krw'].set(str(self.config['order_krw']))
+            restored=copy.deepcopy(self.paper.state); restored['capital_policy_migration']=1
+            self.records.commit(restored); self.paper.state=restored
+
+    def save_settings(self):
+        try:
+            if float(self.setting_vars['order_krw'].get())<150000:
+                raise ValueError('종목당 최소 투자금액은 150,000원 이상이어야 합니다.')
+            if not 1<=float(self.setting_vars['max_positions'].get())<=5:
+                raise ValueError('최대 보유는 1~5종목으로 지정하세요.')
+        except ValueError as error:
+            messagebox.showerror('설정 오류',str(error)); return
+        super().save_settings()
+
+    def entry_plan(self):
+        market=self.regime.snapshot()
+        config,info=allocation_plan(self.paper.state,self.funding_quotes,self.config,market)
+        if self.last_funding_quote is None or time.monotonic()-self.last_funding_quote>CAPITAL_POLICY['quote_ttl_seconds']:
+            config=None; info.update(entry_allowed=False,reason='보유 평가 시세 갱신 대기',order_krw=0.)
+        self.capital_info=info
+        return config,info
 
     def network_event(self,kind,payload):
         with self.records.db() as db:
@@ -127,7 +170,7 @@ class ValidationApp(dashboard.Dashboard):
 
     def get_candidates(self):
         rows=self.market.universe()
-        ranked=sorted(rows,key=lambda r:float(r['acc_trade_price_24h']),reverse=True)
+        ranked=sorted((r for r in rows if r['market']!='KRW-USDT'),key=lambda r:float(r['acc_trade_price_24h']),reverse=True)
         self.candidate_values={r['market']:float(r['acc_trade_price_24h']) for r in ranked[:self.config['top_n']]}
         self.day_changes={r['market']:float(r['signed_change_rate'])*100 for r in ranked}
         # Validate the liquid BTC reference, not every inactive market's last trade.
@@ -303,10 +346,10 @@ class ValidationApp(dashboard.Dashboard):
 
     def on_live_toggle(self):
         self.live_enabled.set(False); self.live_event.clear()
-        messagebox.showinfo('실거래 잠금','v1.8.2은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
+        messagebox.showinfo('실거래 잠금','v1.9은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
 
     def execute(self,*args,**kwargs):
-        raise RuntimeError('v1.8.2은 실제 주문을 허용하지 않습니다')
+        raise RuntimeError('v1.9은 실제 주문을 허용하지 않습니다')
 
     def update_mode(self):
         self.mode_var.set('가상매매 · 실거래 잠금')
@@ -331,8 +374,9 @@ class ValidationApp(dashboard.Dashboard):
         self.network=NetworkGuard(self.network_event)
         self.regime=MarketGuard()
         self.run_id=stamp()
-        self.network_event('validation_segment',dict(version='1.8.2',run_id=self.run_id,
-            settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,note='시작 버튼 · 새 통신 확인 구간'))
+        self.network_event('validation_segment',dict(version='1.9',run_id=self.run_id,
+            settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,capital_policy=CAPITAL_POLICY,
+            reference_settings=self.reference_config,note='시작 버튼 · 새 통신 확인 구간'))
         self.live_event.clear()
         super().start()
         self.update_activity_signal()
@@ -342,7 +386,7 @@ class ValidationApp(dashboard.Dashboard):
         if hasattr(self,'activity_canvas'): self.update_activity_signal()
 
     def buy(self,market,inputs=None,received=None):
-        decision=dict(scan_id=self.current_scan,policy=POLICY,signal=inputs or {},
+        decision=dict(scan_id=self.current_scan,policy=POLICY,capital_policy=CAPITAL_POLICY,signal=inputs or {},
                       market_state=self.regime.snapshot(),daily=dict(self.risk.daily),executed=False)
         def blocked(reason):
             self.last_entry_reason=reason
@@ -358,23 +402,30 @@ class ValidationApp(dashboard.Dashboard):
             return blocked('완료 캔들 시각 만료')
         self.manage_positions()
         if not self.risk.daily['entry_allowed']: return blocked(self.risk.daily['reason'])
-        config,reason=self.regime.entry_config(self.config,len(self.paper.state['positions']))
-        if reason: return blocked(reason)
+        config,capital=self.entry_plan()
+        decision['capital_plan']=capital
+        if config is None: return blocked(capital['reason'])
         try:
-            quote=self.market.quotes([market])[market]
+            requested=sorted(set(self.paper.state['positions'])|{market})
+            final_quotes=self.market.quotes(requested)
+            quote=final_quotes[market]
             self.prices[market]=quote; self.quote_received[market]=time.monotonic()
+            self.funding_quotes=final_quotes; self.last_funding_quote=time.monotonic()
+            self.risk.mark_equity(stamp(),self.paper.state,final_quotes)
         except MarketDataError as e:
             self.network_failure('매수 직전 시세',e); return blocked(str(e))
         reason=shock_reason(inputs,quote)
         if reason: return blocked(reason)
         if self.stop_event.is_set() or not self.network.can_enter(): return blocked('중지/통신 잠금')
         if time.monotonic()-received>POLICY['max_sample_age']: return blocked('매수 직전 신호 만료')
-        config,reason=self.regime.entry_config(self.config,len(self.paper.state['positions']))
-        if reason: return blocked(reason)
+        if not self.risk.daily['entry_allowed']: return blocked(self.risk.daily['reason'])
+        config,capital=self.entry_plan()
+        decision['capital_plan']=capital
+        if config is None: return blocked(capital['reason'])
         reason=self.paper.gate(market,config,stamp())
         if reason: return blocked(reason)
         decision.update(reason='진입 허용',applied_order_krw=config['order_krw'],quote=quote,
-                        market_state=self.regime.snapshot(),daily=dict(self.risk.daily))
+                        market_state=self.regime.snapshot(),daily=dict(self.risk.daily),capital_plan=capital)
         self.risk.record('entry_decisions',stamp(),decision,market=market)
         event=self.paper.buy(market,quote,config,stamp())
         if event:
@@ -387,11 +438,11 @@ class ValidationApp(dashboard.Dashboard):
     def reference_buy(self,market,inputs,received):
         if not inputs.get('legacy_pass') or not self.network.can_enter() or self.stop_event.is_set(): return
         if time.monotonic()-received>POLICY['max_sample_age']: return
-        if self.reference.gate(market,self.config,stamp()): return
+        if self.reference.gate(market,self.reference_config,stamp()): return
         try: quote=self.market.quotes([market])[market]
         except MarketDataError as e:
             self.network_failure('비교 시세',e); return
-        self.reference.buy(market,quote,self.config,stamp())
+        self.reference.buy(market,quote,self.reference_config,stamp())
 
     def entry_signal(self,market):
         df=self.market.candles(market,count=80)
@@ -446,8 +497,9 @@ class ValidationApp(dashboard.Dashboard):
         # Hide missing prices rather than continuing to display a cached portfolio quote.
         for market in set(markets)-set(quotes): self.prices.pop(market,None)
         events=self.paper.monitor(quotes,self.config,stamp())
-        self.reference.monitor(quotes,self.config,stamp())
+        self.reference.monitor(quotes,self.reference_config,stamp())
         self.risk.mark_equity(stamp(),self.paper.state,quotes)
+        self.funding_quotes=quotes; self.last_funding_quote=time.monotonic()
         def value(state):
             return None if any(m not in quotes for m in state['positions']) else state['cash']+sum(p['qty']*quotes[m] for m,p in state['positions'].items())
         self.comparison=(value(self.paper.state),value(self.reference.state))
@@ -475,7 +527,7 @@ class ValidationApp(dashboard.Dashboard):
                 try:
                     if not self.manage_positions(): raise MarketDataError('보유 시세 확인 실패')
                     scan=self.records.start_scan(stamp(),dict({k:self.config[k] for k in main.DEFAULTS},
-                        version='1.8.2',run_id=self.run_id,risk_policy=POLICY))
+                        version='1.9',run_id=self.run_id,risk_policy=POLICY,capital_policy=CAPITAL_POLICY))
                     self.current_scan=scan; self.scan_text='시장 판단을 위한 전체 후보 조회 중'
                     markets=self.get_candidates(); self.network.confirm_cycle()
                     staged=[]; samples={}
@@ -499,20 +551,21 @@ class ValidationApp(dashboard.Dashboard):
                         self.regime.invalidate('스캔 중단/통신 오류 · 신규 진입 잠금')
                     else:
                         self.regime.assess(samples,markets,now_kst().timestamp())
-                    assessment=dict(self.regime.snapshot(),policy=POLICY,run_id=self.run_id,
+                    assessment=dict(self.regime.snapshot(),policy=POLICY,capital_policy=CAPITAL_POLICY,run_id=self.run_id,
                                     assessed_at=stamp(),settings={k:self.config[k] for k in main.DEFAULTS})
                     self.risk.record('market_checks',stamp(),assessment,scan=scan)
                     rows=[]
                     for i,(market,signal,rsi,trend,reason,inputs,received,details) in enumerate(staged):
                         if self.stop_event.is_set(): break
                         self.reference_buy(market,inputs,received)
-                        config,gate=self.regime.entry_config(self.config,len(self.paper.state['positions']))
+                        config,capital=self.entry_plan()
+                        gate=capital['reason'] if config is None else ''
                         if not self.network.can_enter(): gate='통신 확인/복구 중 · 신규 가상매수 잠금'
                         elif not self.risk.daily['entry_allowed']: gate=self.risk.daily['reason']
                         elif not gate: gate=self.paper.gate(market,config,stamp())
                         passed=signal and not gate
                         details.update(passed=passed,gate=gate,reason='; '.join(filter(None,[reason,gate])) or '조건 충족',
-                                       market_state=self.regime.snapshot(),applied_order_krw=config['order_krw'] if config and passed else 0.)
+                                       market_state=self.regime.snapshot(),capital_plan=capital,applied_order_krw=config['order_krw'] if config and passed else 0.)
                         self.records.observation(scan,market,stamp(),details)
                         if passed:
                             event=self.buy(market,inputs,received)
@@ -588,17 +641,25 @@ class ValidationApp(dashboard.Dashboard):
         self.loss_streak_var.set(f"가상 {s['loss_streak']} / {self.config['max_losses']}")
         self.safety_text='기록 저장 실패 · 중지 필요' if self.record_error else '가상 검증 전용 · 실제 주문 없음'
         market=self.regime.snapshot()
+        _,capital=self.entry_plan()
+        self.config_label.configure(text=f"현금 최소 20% · 최소 {max(150000,self.config['order_krw']):,.0f}원 / 종목 · 최대 {min(5,self.config['max_positions'])}종목\n"
+            f"손절 -{self.config['stop_pct']:g}% · 1차 +{self.config['target_pct']:g}% · 트레일링 -{self.config['trailing_pct']:g}%")
+        if capital.get('equity') is None:
+            self.capital_label.configure(text='자금 계산 대기 · '+capital['reason'])
+        else:
+            self.capital_label.configure(text=f"총 평가자산 {capital['equity']:,.0f}원 · 현금 {capital['cash']:,.0f}원 · 현금 하한 {capital['reserve_cash']:,.0f}원(20%) · "
+                f"추가 가능 {capital['new_slots']}종목 · 다음 매수 {capital['order_krw']:,.0f}원 · {capital['reason']}")
         display,action,foreground,background=dashboard.market_presentation(market['state'])
         self.market_badge.configure(text=display,fg=foreground,bg=background)
         if self.tray:
-            self.tray.status(f"업비트 v1.8.2 · {'실행 중' if self.running else '중지됨'} · {display}")
+            self.tray.status(f"업비트 v1.9 · {'실행 중' if self.running else '중지됨'} · {display}")
         counts=market_counts_text(market)
         self.market_label.configure(text=f"후보군 기준 · {counts} · {action}\n{market['reason']} · {self.risk.daily['reason']}",
             wraplength=max(400,self.market_strip.winfo_width()-self.market_badge.winfo_reqwidth()-20))
         health=self.network.snapshot()
         network_name={'checking':'시작 확인','recovering':'복구 확인','healthy':'정상','offline':'장애','stale':'수신 지연'}[health['state']]
         self.network_label.configure(text=f"통신 {network_name} · 마지막 종합 정상 수신 {health['last_success'] or '없음'} · "
-            f"복구 확인 {min(health['successes'],2)}/2 · 신규 가상매수 {'가능' if health['entry_allowed'] and market['entry_allowed'] and self.risk.daily['entry_allowed'] and self.running else '잠금'} · "
+            f"복구 확인 {min(health['successes'],2)}/2 · 신규 가상매수 {'가능' if health['entry_allowed'] and market['entry_allowed'] and capital['entry_allowed'] and self.risk.daily['entry_allowed'] and self.running else '잠금'} · "
             '통신 단절 동안 자동 청산 불가',fg=dashboard.GREEN if health['entry_allowed'] else dashboard.RED)
         self.today_label.configure(text=f"가상 누적 실현손익 {s['realized']:+,.0f}원\n누적 수수료 {s['fees']:,.0f}원 · 종료 {s['closed']}건",fg=dashboard.TEXT)
         self.paper_summary.configure(text=f"가상 잔고 {s['cash']:,.0f}원  |  가상 보유 {len(s['positions'])}종목  |  누적 실현손익 {s['realized']:+,.0f}원\n실제 주문 OFF · 기록은 시작 버튼을 누른 동안 누적됩니다.")
@@ -646,7 +707,7 @@ def export_bundle(records,path):
             counts={t:db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('scans','observations','trades','logs','quotes','equity','candles','network_events','health_checks','market_checks','entry_decisions','risk_days') if t in tables}
             span=db.execute('SELECT MIN(started),MAX(ended) FROM scans').fetchone()
             state=json.loads(db.execute('SELECT payload FROM state WHERE id=1').fetchone()[0])
-            report=dict(risk_policy=POLICY,version='1.8.2',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
+            report=dict(risk_policy=POLICY,capital_policy=CAPITAL_POLICY,version='1.9',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
                 simulation_only=True,initial_cash=state['initial_cash'],cash=state['cash'],realized_pnl=state['realized'],
                 fees=state['fees'],positions=state['positions'],closed=state['closed'],wins=state['wins'],
                 fee_rate=state['fee'],slippage_bps=state['slippage_bps'],

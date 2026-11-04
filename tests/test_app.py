@@ -56,7 +56,7 @@ class AppTests(unittest.TestCase):
         self.ready()
         with patch.object(self.a.market,'quotes',return_value={'KRW-X':100}): self.buy('KRW-X')
         self.assertIn('KRW-X',self.a.paper.state['positions'])
-        self.a.paper.monitor({'KRW-X':9500},self.a.config,TIME)
+        self.a.paper.monitor({'KRW-X':95},self.a.config,TIME)
         self.assertIn('당일',self.a.paper.gate('KRW-X',self.a.config,TIME))
     def test_missing_quotes_do_not_sell_at_cached_price(self):
         self.a.paper.buy('KRW-X',10000,self.a.config,TIME); self.a.prices['KRW-X']=9500
@@ -73,7 +73,7 @@ class AppTests(unittest.TestCase):
         out=self.base/'test.zip'; export_bundle(self.a.records,out)
         with zipfile.ZipFile(out) as z:
             self.assertIn('network_events.csv',z.namelist()); self.assertIn('health_checks.csv',z.namelist())
-            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.8.2')
+            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.9')
             self.assertIn('market_checks.csv',z.namelist()); self.assertIn('entry_decisions.csv',z.namelist())
             self.assertIn('benchmark_v18.sqlite3',z.namelist())
             self.assertFalse(any(n.endswith('.env') for n in z.namelist()))
@@ -274,7 +274,50 @@ class AppTests(unittest.TestCase):
         calls,bought_after=self.run_sample_loop(12)
         self.assertEqual(len(calls),12); self.assertTrue(bought_after)
         self.assertTrue(all(n==12 for n in bought_after))
-        self.assertEqual(len(self.a.paper.state['positions']),3)
+        self.assertEqual(len(self.a.paper.state['positions']),5)
+        self.assertEqual(len(self.a.reference.state['positions']),3)
+
+    def test_usdt_excluded_before_ranking_and_next_market_fills_search_count(self):
+        rows=[dict(market='KRW-USDT',trade_price=100,acc_trade_price_24h=3e9,signed_change_rate=0,timestamp=1000000),
+              dict(market='KRW-BTC',trade_price=100,acc_trade_price_24h=2e9,signed_change_rate=0,timestamp=1000000)]
+        rows += [dict(market=f'KRW-X{i}',trade_price=100,acc_trade_price_24h=1e9-i,signed_change_rate=0,timestamp=1000000) for i in range(16)]
+        with patch.object(self.a.market,'universe',return_value=rows),patch.object(self.a.market,'clock',return_value=1000):
+            result=self.a.get_candidates()
+        self.assertEqual(len(result),15); self.assertNotIn('KRW-USDT',result)
+        self.assertIn('KRW-X13',result)
+        self.assertIn('전략 제외',self.a.paper.gate('KRW-USDT',self.a.config,TIME))
+
+    def test_capital_quote_expiry_blocks_entry_plan(self):
+        self.ready(); self.a.funding_quotes={}; self.a.last_funding_quote=time.monotonic()-16
+        config,info=self.a.entry_plan()
+        self.assertIsNone(config); self.assertIn('시세',info['reason'])
+
+    def test_final_held_quote_revaluation_rechecks_cash_reserve(self):
+        self.ready()
+        symbols=[f'KRW-OLD{i}' for i in range(3)]
+        for symbol in symbols: self.a.paper.buy(symbol,100,self.a.config,TIME)
+        with patch.object(self.a.market,'holding_quotes',return_value=({m:100 for m in symbols},[])), \
+             patch.object(self.a.market,'quotes',side_effect=lambda ms:{m:(100 if m=='KRW-NEW' else 400) for m in ms}):
+            event=self.buy('KRW-NEW')
+        self.assertIsNone(event); self.assertEqual(len(self.a.paper.state['positions']),3)
+        self.assertIn('20%',self.a.last_entry_reason)
+
+    def test_legacy_settings_migrate_to_five_preserving_portfolio_and_reference(self):
+        self.a.paper.buy('KRW-X',100,self.a.config,TIME)
+        before=json.loads(json.dumps(self.a.paper.state)); before.pop('capital_policy_migration')
+        self.a.records.commit(before)
+        main.atomic_json(self.base/'settings.json',dict(self.a.config,max_positions=3,target_pct=3))
+        old_reference=json.loads(json.dumps(self.a.reference.state))
+        newroot=tk.Tk(); newroot.withdraw()
+        try:
+            restored=ValidationApp(newroot)
+            self.assertEqual(restored.config['max_positions'],5)
+            self.assertEqual(restored.config['target_pct'],3)
+            self.assertEqual(restored.paper.state['positions'],before['positions'])
+            self.assertEqual(restored.paper.state['cash'],before['cash'])
+            self.assertEqual(restored.reference.state,old_reference)
+            self.assertEqual(restored.reference_config['max_positions'],3)
+        finally: self.destroy_root(newroot)
 
     def test_bear_blocks_main_but_reference_keeps_old_signals(self):
         calls,bought_after=self.run_sample_loop(3)

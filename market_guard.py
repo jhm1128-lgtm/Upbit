@@ -37,7 +37,7 @@ class MarketGuard:
     def __init__(self,clock=time.monotonic,policy=None):
         self.clock=clock; self.policy=copy.deepcopy(policy or POLICY)
         self.lock=threading.RLock(); self.updated=None; self.pending=None; self.count=0; self.frame=None
-        self.data=dict(state='unknown',reason='시장 판단 전',breadth=None,rising=None,valid=0,expected=0,
+        self.data=dict(state='unknown',reason='시장 판단 전',breadth=None,rising=None,valid=0,expected=0,scanned=0,stable_excluded=0,
                        confirmation_count=0,entry_allowed=False,size_factor=0.,position_cap=0)
 
     def invalidate(self,reason):
@@ -60,7 +60,9 @@ class MarketGuard:
                     if (type(inputs['trend']) is bool and 0<=now-received<=policy['max_sample_age']
                         and 300<=age<=policy['max_candle_age']): valid.append(inputs)
                 except (KeyError,TypeError,ValueError): pass
-            expected=len(set(expected)-STABLES)
+            searched=set(expected)
+            self.data.update(scanned=len(searched),stable_excluded=len(searched&STABLES))
+            expected=len(searched-STABLES)
             self.data.update(valid=len(valid),expected=expected,breadth=None)
             if expected<policy['minimum_candidates'] or len(valid)<policy['minimum_candidates'] or len(valid)/expected<policy['minimum_coverage']:
                 return self.invalidate('시장 판단 자료 부족 · 신규 진입 잠금')
@@ -112,7 +114,7 @@ class MarketGuard:
 
 def market_counts_text(snapshot):
     valid,expected=snapshot['valid'],snapshot['expected']
-    prefix=f'분석 가능 {valid}/{expected}'
+    prefix=f"검색 {snapshot.get('scanned',expected)} · 스테이블 {snapshot.get('stable_excluded',0)} 제외 · 분석 가능 {valid}/{expected}"
     if snapshot['breadth'] is None or not valid:
         return prefix+' · 상승 추세 자료 없음'
     rising=snapshot.get('rising')

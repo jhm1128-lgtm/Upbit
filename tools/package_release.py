@@ -13,12 +13,13 @@ for p in files:
 guide=root/'docs'/f'USER_GUIDE_{version}.md'
 assert guide.exists(),guide
 patch_files=['validation_app.py','dashboard.py','main.py','market_guard.py','tray_icon.py','VERSION','VALIDATION.md',
-             'trade_history.py','ui_widgets.py','log_view.py',
-             'tests/test_app.py','tests/test_market_guard.py','tests/test_network.py','tests/test_history_tools.py']
+             'trade_history.py','ui_widgets.py','log_view.py','paper.py','capital.py',
+             'tests/test_app.py','tests/test_market_guard.py','tests/test_network.py','tests/test_history_tools.py','tests/test_capital.py']
 patch_files += [p.relative_to(root).as_posix() for p in (root/'docs').glob('USER_GUIDE_*.md')]
 outcomes=[]
 for full in (True,False):
-    out=target/(f'UpbitAutoTrading_{version}_Full.zip' if full else f'Upbit_{version}_UI_Update.zip')
+    update_kind='Capital' if version=='v1.9' else 'UI'
+    out=target/(f'UpbitAutoTrading_{version}_Full.zip' if full else f'Upbit_{version}_{update_kind}_Update.zip')
     with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
         prefix=f'UpbitAutoTrading_{version}/' if full else ''
         for p in files if full else [root/name for name in patch_files]:

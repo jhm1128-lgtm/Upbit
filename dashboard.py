@@ -23,8 +23,8 @@ FIELD = '#e8eff7'
 
 def market_presentation(state):
     return {
-        'normal':('BULL · 상승','정상 진입 · 기존 주문 설정',GREEN,'#e1f3ea'),
-        'cautious':('NORMAL · 중립/주의','축소 진입 · 주문 50% / 최대 1종목','#8a5b00','#fff1d2'),
+        'normal':('BULL · 상승','자금 조건 내 균등 배분 · 최대 5종목',GREEN,'#e1f3ea'),
+        'cautious':('NORMAL · 중립/주의','축소 진입 · 최소 15만원 / 최대 1종목','#8a5b00','#fff1d2'),
         'bear':('BEAR · 약세','신규 진입 차단',RED,'#fbe5e9'),
         'unknown':('WAIT · 판정 불가','신규 진입 대기',MUTED,FIELD),
         'recovering':('RECOVERING · 회복 확인','새 완료봉 확인 중 · 신규 진입 대기',BLUE,'#e2edff'),
@@ -42,7 +42,7 @@ class Dashboard(engine.UpbitAutoTrader):
         self.closed = False
         self.nav_buttons = []
         super().__init__(root)
-        root.title('UPBIT AUTO TRADING v1.8.2 · Neon Dashboard')
+        root.title('UPBIT AUTO TRADING v1.9 · Neon Dashboard')
         root.geometry('1536x1000')
         root.minsize(1150,800)
         root.after(500,self.request_chart)
@@ -86,7 +86,7 @@ class Dashboard(engine.UpbitAutoTrader):
         header = tk.Frame(self.root,bg=HEADER,height=58)
         header.pack(fill='x')
         tk.Label(header,text='▥  UPBIT AUTO TRADING',bg=HEADER,fg=TEXT,font=('Segoe UI',21,'bold')).pack(side='left',padx=18,pady=9)
-        tk.Label(header,text='v1.8.2',bg=HEADER,fg=CYAN,font=('Segoe UI',15,'bold')).pack(side='left')
+        tk.Label(header,text='v1.9',bg=HEADER,fg=CYAN,font=('Segoe UI',15,'bold')).pack(side='left')
         tk.Label(header,text='거래대금 상위 + 추세 + RSI   |   손절 · 익절 · 트레일링',bg=HEADER,fg=MUTED,font=('맑은 고딕',10)).pack(side='left',padx=22)
         self.clock = tk.Label(header,bg=HEADER,fg=TEXT,font=('Segoe UI',10))
         self.clock.pack(side='right',padx=18)
@@ -123,7 +123,7 @@ class Dashboard(engine.UpbitAutoTrader):
             self.tabs.add(page,text=title)
             button = tk.Button(sidebar,text=['⌂','▧','◕','▤','▥','⚙','☷'][i]+'   '+title,command=lambda n=i:self.navigate(n),bg=SIDEBAR,fg=TEXT,activebackground=BLUE,activeforeground='white',relief='flat',anchor='w',font=('맑은 고딕',12,'bold'),padx=20,pady=15)
             button.pack(fill='x',padx=8,pady=(10 if i==0 else 3,3)); self.nav_buttons.append(button)
-        tk.Label(sidebar,text='UPBIT DASHBOARD\nv1.8.2\n\n실거래 잠금',bg=SIDEBAR,fg=MUTED,font=('Segoe UI',9),justify='left').pack(side='bottom',pady=25)
+        tk.Label(sidebar,text='UPBIT DASHBOARD\nv1.9\n\n실거래 잠금',bg=SIDEBAR,fg=MUTED,font=('Segoe UI',9),justify='left').pack(side='bottom',pady=25)
         dash = pages[0]
         dash.rowconfigure(0,weight=1); dash.rowconfigure(1,weight=0); dash.rowconfigure(2,weight=0)
         self.dashboard_page=dash
@@ -161,7 +161,7 @@ class Dashboard(engine.UpbitAutoTrader):
         ttk.Button(filters,text='전체 보기',command=self.reset_profit_filters).pack(side='left')
         self.pnl_summary_label = ttk.Label(pages[4]); self.pnl_summary_label.pack(fill='x',pady=8)
         self.daily_tree = self.table(pages[4],[(x,y,130) for x,y in [('date','일자'),('pnl','실현손익'),('rate','수익률'),('assets','마감자산'),('count','매도 횟수'),('winrate','승률')]])
-        specs = [('order_krw','1회 매수 금액 (원)'),('max_positions','최대 보유 종목 수'),('stop_pct','손절 (%)'),('target_pct','1차 익절 (%)'),('trailing_pct','트레일링 (%)'),('first_fraction','1차 매도 비율'),('max_losses','연속 손절 제한'),('top_n','거래대금 상위 N'),('poll_seconds','스캔 사이 대기 (초)')]
+        specs = [('order_krw','종목당 최소 투자금액 (원)'),('max_positions','최대 보유 종목 수'),('stop_pct','손절 (%)'),('target_pct','1차 익절 (%)'),('trailing_pct','트레일링 (%)'),('first_fraction','1차 매도 비율'),('max_losses','연속 손절 제한'),('top_n','거래대금 상위 N'),('poll_seconds','스캔 사이 대기 (초)')]
         for i,(key,label) in enumerate(specs):
             tk.Label(pages[5],text=label,bg=BG,fg=TEXT,font=('맑은 고딕',11)).grid(row=i,column=0,padx=20,pady=8,sticky='w')
             ttk.Entry(pages[5],textvariable=self.setting_vars[key],width=22).grid(row=i,column=1,padx=20,pady=8)
@@ -300,7 +300,7 @@ class Dashboard(engine.UpbitAutoTrader):
 
 
 if __name__ == '__main__':
-    raise SystemExit('v1.8.2은 start.bat 또는 validation_app.py로 실행하세요. 이 구버전 진입점은 잠겨 있습니다.')
+    raise SystemExit('v1.9은 start.bat 또는 validation_app.py로 실행하세요. 이 구버전 진입점은 잠겨 있습니다.')
     import msvcrt
     lockfile = open(engine.BASE/'.instance.lock','a+b')
     lockfile.seek(0)
