@@ -6,13 +6,13 @@ import math
 from pathlib import Path
 
 FIELDS=['record_id','stamp','simulation','category','side','market','quote','price','qty','funds','fee','pnl','return_pct','reason']
-CATEGORIES=['전체','매수','매도 전체','손절','익절 전체','1차 익절','트레일링','기타 매도']
+CATEGORIES=['전체','매수','매도 전체','손절','익절 전체','1차 익절','트레일링','BEAR 수익 보호','기타 매도']
 
 
 def category(event):
     if event['side']=='BUY': return '매수'
     reason=event.get('reason','')
-    return reason if reason in ('손절','1차 익절','트레일링') else '기타 매도'
+    return reason if reason in ('손절','1차 익절','트레일링','BEAR 수익 보호') else '기타 매도'
 
 
 def matches(event,selected):

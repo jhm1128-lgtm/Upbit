@@ -1,0 +1,303 @@
+{
+  "start": "2026-11-04T18:13:49+09:00",
+  "end": "2026-11-11T18:44:06+09:00",
+  "primary": {
+    "first": [
+      "2026-11-04T18:13:52+09:00",
+      {
+        "cash": 563202.3007810194,
+        "equity": 945603.7374707586,
+        "realized": -61610.19921898101,
+        "fees": 21017.109705243132,
+        "missing_prices": []
+      }
+    ],
+    "last": [
+      "2026-11-11T18:44:06+09:00",
+      {
+        "cash": 340220.09980869933,
+        "equity": 848195.3998966075,
+        "realized": -149742.00869130093,
+        "fees": 27612.529314561638,
+        "missing_prices": []
+      }
+    ],
+    "change": -97408.33757415111,
+    "return_pct": -10.301179417362793,
+    "max_drawdown_pct": -13.545972838964826,
+    "missing": 912,
+    "observed_hours": 161.75861111111112,
+    "gaps": [
+      [
+        "2026-11-04T18:14:08+09:00",
+        "2026-11-04T18:20:03+09:00",
+        355.0
+      ]
+    ]
+  },
+  "reference": {
+    "first": [
+      "2026-11-04T18:13:52+09:00",
+      {
+        "cash": 471221.3303563306,
+        "equity": 926206.8209492764,
+        "realized": -78553.66964367009,
+        "fees": 22546.884107231785,
+        "missing_prices": []
+      }
+    ],
+    "last": [
+      "2026-11-11T18:44:06+09:00",
+      {
+        "cash": 431362.70178502006,
+        "equity": 878247.4865262972,
+        "realized": -118412.29821498088,
+        "fees": 29880.62166172338,
+        "missing_prices": []
+      }
+    ],
+    "change": -47959.33442297927,
+    "return_pct": -5.1780372739887,
+    "max_drawdown_pct": -7.4169298708804625,
+    "missing": 1872,
+    "observed_hours": 156.72416666666666,
+    "gaps": [
+      [
+        "2026-11-04T18:14:08+09:00",
+        "2026-11-04T18:20:03+09:00",
+        355.0
+      ]
+    ]
+  },
+  "primary_trades": {
+    "daily": {
+      "2026-11-04": {
+        "buys": 3,
+        "sells": 5,
+        "pnl": 12124.18044998706
+      },
+      "2026-11-05": {
+        "buys": 7,
+        "sells": 14,
+        "pnl": -23088.929891419415
+      },
+      "2026-11-06": {
+        "buys": 4,
+        "sells": 5,
+        "pnl": -14300.571660753096
+      },
+      "2026-11-07": {
+        "buys": 6,
+        "sells": 6,
+        "pnl": -19758.007040155586
+      },
+      "2026-11-08": {
+        "buys": 3,
+        "sells": 5,
+        "pnl": 3394.930665628979
+      },
+      "2026-11-09": {
+        "buys": 4,
+        "sells": 5,
+        "pnl": -30596.071931548307
+      },
+      "2026-11-10": {
+        "buys": 5,
+        "sells": 6,
+        "pnl": -15840.659891833295
+      },
+      "2026-11-11": {
+        "buys": 5,
+        "sells": 3,
+        "pnl": -66.68017222618346
+      }
+    },
+    "reasons": {
+      "트레일링": {
+        "count": 13,
+        "pnl": 28937.226405742756
+      },
+      "1차 익절": {
+        "count": 12,
+        "pnl": 32870.92118259474
+      },
+      "손절": {
+        "count": 24,
+        "pnl": -149939.95706065735
+      }
+    },
+    "buys": 37,
+    "sells": 49,
+    "realized": -88131.80947231984
+  },
+  "reference_trades": {
+    "daily": {
+      "2026-11-04": {
+        "buys": 0,
+        "sells": 3,
+        "pnl": 6547.753728871132
+      },
+      "2026-11-05": {
+        "buys": 9,
+        "sells": 17,
+        "pnl": 6976.048473906587
+      },
+      "2026-11-06": {
+        "buys": 10,
+        "sells": 10,
+        "pnl": -9561.610532380117
+      },
+      "2026-11-09": {
+        "buys": 11,
+        "sells": 14,
+        "pnl": -31526.590977906773
+      },
+      "2026-11-10": {
+        "buys": 11,
+        "sells": 18,
+        "pnl": -1407.4389306836674
+      },
+      "2026-11-11": {
+        "buys": 8,
+        "sells": 10,
+        "pnl": -10886.790333117955
+      }
+    },
+    "reasons": {
+      "1차 익절": {
+        "count": 23,
+        "pnl": 52712.365443803385
+      },
+      "트레일링": {
+        "count": 23,
+        "pnl": 37391.28011312621
+      },
+      "손절": {
+        "count": 26,
+        "pnl": -129962.27412824039
+      }
+    },
+    "buys": 49,
+    "sells": 72,
+    "realized": -39858.62857131079
+  },
+  "cohort": {
+    "new": 37,
+    "closed": 34,
+    "wins": 10,
+    "max_concurrent": 5
+  },
+  "reconcile": {
+    "cash_diff": 0.0,
+    "fees_diff": 0.0,
+    "realized_diff": 0.0,
+    "issues": [],
+    "position_qty_diff": {
+      "KRW-ETH": 0.0,
+      "KRW-ONDO": 0.0,
+      "KRW-DOGE": 0.0
+    }
+  },
+  "market_states": {
+    "recovering": 1478,
+    "bear": 19335,
+    "cautious": 3998,
+    "normal": 2010,
+    "unknown": 635
+  },
+  "health_states": {
+    "checking": 2,
+    "recovering": 356,
+    "healthy": 36025,
+    "offline": 1099,
+    "stale": 2
+  },
+  "network_events": {
+    "validation_segment": 3,
+    "recovery_check": 156,
+    "recovered": 149,
+    "outage_start": 148,
+    "network_error": 449
+  },
+  "scans": {
+    "complete": 27412,
+    "network_error": 45,
+    "error": 1
+  },
+  "executed_states": {
+    "normal": 37
+  },
+  "capital_violations": [],
+  "signal_counts": {
+    "immediate": 86,
+    "confirmed": 62
+  },
+  "bear_exit_variants": {
+    "immediate": {
+      "n": 15,
+      "delta": 33687.514890580125,
+      "improved": 9,
+      "worsened": 6,
+      "avoided_loss": 56680.97773607563,
+      "missed_profit": 22993.462845495502,
+      "max_fill_delay": 16.0,
+      "fixed_entry_equity_return_pct": -6.774505296318168,
+      "fixed_entry_equity_mdd_pct": -8.494170963242231,
+      "missing_curve_samples": 0,
+      "minimum_counterfactual_cash": 196485.7802547409
+    },
+    "immediate_half": {
+      "n": 15,
+      "delta": 16843.757445290063,
+      "improved": 9,
+      "worsened": 6,
+      "avoided_loss": 28340.488868037814,
+      "missed_profit": 11496.731422747751,
+      "max_fill_delay": 16.0,
+      "fixed_entry_equity_return_pct": -8.537842356840496,
+      "fixed_entry_equity_mdd_pct": -11.011256398754721,
+      "missing_curve_samples": 0,
+      "minimum_counterfactual_cash": 184807.8835637498
+    },
+    "confirmed": {
+      "n": 8,
+      "delta": 21264.397351339256,
+      "improved": 5,
+      "worsened": 3,
+      "avoided_loss": 33079.71350773356,
+      "missed_profit": 11815.316156394303,
+      "max_fill_delay": 15.0,
+      "fixed_entry_equity_return_pct": -8.088281569291622,
+      "fixed_entry_equity_mdd_pct": -10.345582012073306,
+      "missing_curve_samples": 0,
+      "minimum_counterfactual_cash": 183605.5412542184
+    }
+  },
+  "nth_entry_results": {
+    "1": {
+      "count": 6,
+      "realized": -29771.814744846914,
+      "closed": 5
+    },
+    "2": {
+      "count": 7,
+      "realized": -17330.31980131376,
+      "closed": 7
+    },
+    "3": {
+      "count": 8,
+      "realized": -10899.336582866501,
+      "closed": 7
+    },
+    "4": {
+      "count": 12,
+      "realized": -33164.17095715515,
+      "closed": 11
+    },
+    "5": {
+      "count": 4,
+      "realized": -9776.884420423052,
+      "closed": 4
+    }
+  }
+}

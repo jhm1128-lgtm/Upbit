@@ -94,7 +94,25 @@ class CapitalTests(unittest.TestCase):
                 self.assertGreaterEqual(plan['projected_cash_ratio']+1e-12,.2)
                 self.assertGreaterEqual(config['order_krw'],150000)
                 self.assertLessEqual(config['max_positions'],5); checked+=1
+                self.assertLessEqual(config['order_krw'],plan['per_position_cap'])
             self.assertEqual(state,saved)
         self.assertGreater(checked,50)
+
+    def test_partial_exits_cannot_concentrate_released_cash_into_last_slot(self):
+        from capital_v19 import allocation_plan as old_plan
+        state=empty(626000);state['positions']={f'KRW-X{i}':dict(qty=850) for i in range(4)}
+        quotes={m:100 for m in state['positions']}
+        old,_=old_plan(state,quotes,CONFIG,BULL)
+        config,info=allocation_plan(state,quotes,CONFIG,BULL)
+        self.assertGreater(old['order_krw'],400000)
+        self.assertLess(config['order_krw'],200000)
+        self.assertGreaterEqual(config['order_krw'],150000)
+        self.assertEqual(info['total_affordable_slots'],5)
+
+    def test_ledger_rejects_cap_tampering_even_when_reserve_would_pass(self):
+        with tempfile.TemporaryDirectory() as folder:
+            paper=Paper(Records(Path(folder)/'test.sqlite3'))
+            config,info=allocation_plan(paper.state,{},CONFIG,BULL)
+            self.assertIn('집중',paper.gate('KRW-X',dict(config,order_krw=200000),TIME))
 
 if __name__=='__main__': unittest.main()

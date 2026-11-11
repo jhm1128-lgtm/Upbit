@@ -53,5 +53,15 @@
     "path": "releases/v1.9/Upbit_v1.9_Capital_Update.zip",
     "bytes": 75018,
     "sha256": "6a873e80953a2bfa3dd094661b7d377af20dca82badfbedceedf42737919d4fd"
+  },
+  {
+    "path": "releases/v1.10/UpbitAutoTrading_v1.10_Full.zip",
+    "bytes": 111512,
+    "sha256": "0557738853f85b14b29fd7d06b8c3326da243c1ef30cefd32e7c849b7407f194"
+  },
+  {
+    "path": "releases/v1.10/Upbit_v1.10_ProfitGuard_Update.zip",
+    "bytes": 87262,
+    "sha256": "ce01d3f26f86c6f7bdf0debde870d01ef6bf181259cead78deaa9af754f2344a"
   }
 ]

@@ -113,7 +113,7 @@ class Paper:
         elapsed=datetime.fromisoformat(stamp).timestamp()-s['cooldowns'].get(market,0)
         if elapsed<900: return '가상 15분 재진입 대기'
         if s['cash']<c['order_krw']*(1+s['fee']): return '가상 원화 부족'
-        if c.get('capital_policy_version')=='1.9':
+        if c.get('capital_policy_version') in ('1.9','1.10'):
             if not math.isfinite(float(c['order_krw'])): return '잘못된 신규 투자금액'
             minimum=float(c.get('minimum_order_krw',150000))
             reserve=float(c.get('reserve_cash_min',float('inf')))
@@ -121,6 +121,10 @@ class Paper:
                 return '종목당 최소 15만원 미충족'
             if not math.isfinite(reserve) or reserve<0 or s['cash']-c['order_krw']*(1+s['fee'])+1e-7<reserve:
                 return '매수 수수료 포함 현금 20% 잠금'
+            if c['capital_policy_version']=='1.10':
+                ceiling=float(c.get('per_position_cap',-1))
+                if not math.isfinite(ceiling) or ceiling<0 or c['order_krw']>ceiling+1e-7:
+                    return '종목당 자금 집중 한도 초과'
         return ''
 
     def buy(self,market,quote,c,stamp):

@@ -73,7 +73,7 @@ class AppTests(unittest.TestCase):
         out=self.base/'test.zip'; export_bundle(self.a.records,out)
         with zipfile.ZipFile(out) as z:
             self.assertIn('network_events.csv',z.namelist()); self.assertIn('health_checks.csv',z.namelist())
-            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.9')
+            report=json.loads(z.read('summary.json')); self.assertEqual(report['version'],'1.10')
             self.assertIn('market_checks.csv',z.namelist()); self.assertIn('entry_decisions.csv',z.namelist())
             self.assertIn('benchmark_v18.sqlite3',z.namelist())
             self.assertFalse(any(n.endswith('.env') for n in z.namelist()))
@@ -324,5 +324,31 @@ class AppTests(unittest.TestCase):
         self.assertEqual(bought_after,[])
         self.assertEqual(self.a.paper.state['positions'],{})
         self.assertTrue(self.a.reference.state['positions'])
+
+    def test_bear_profit_exit_leaves_independent_v19_control_untouched(self):
+        self.ready()
+        for paper in (self.a.paper,self.a.control):paper.buy('KRW-X',100,self.a.config,TIME)
+        self.a.exit_guard.observe(dict(state='normal',breadth=.8),self.a.paper.state['positions'],TIME)
+        self.a.exit_guard.observe(dict(state='bear',breadth=.2),self.a.paper.state['positions'],TIME)
+        self.a.regime.data.update(state='bear',breadth=.2,entry_allowed=False)
+        with patch.object(self.a.market,'holding_quotes',return_value=({'KRW-X':101},[])):
+            self.a.manage_positions()
+        self.assertNotIn('KRW-X',self.a.paper.state['positions'])
+        self.assertIn('KRW-X',self.a.control.state['positions'])
+        with self.a.records.db() as db:
+            rows=[json.loads(v) for v, in db.execute('SELECT payload FROM exit_decisions')]
+        self.assertEqual(sum(v.get('executed',False) for v in rows),1)
+
+    def test_independent_v19_control_buys_with_old_allocation_and_no_bear_exit(self):
+        self.run_sample_loop(12)
+        self.assertEqual(len(self.a.control.state['positions']),5)
+        self.assertEqual(self.a.control_config['max_positions'],5)
+
+    def test_control_only_quote_failure_does_not_lock_primary(self):
+        self.ready();self.a.control_risk.mark_equity(TIME,self.a.control.state,{})
+        signal=dict(self.signal(),strategy_pass=True)
+        with patch.object(self.a.market,'quotes',side_effect=MarketDataError('comparison only')):
+            self.a.control_buy('KRW-X',signal,time.monotonic())
+        self.assertTrue(self.a.network.can_enter())
 
 if __name__=='__main__': unittest.main()

@@ -12,6 +12,7 @@ class RiskBook:
             db.executescript('''
             CREATE TABLE IF NOT EXISTS market_checks(id INTEGER PRIMARY KEY,stamp TEXT,scan_id INTEGER,payload TEXT);
             CREATE TABLE IF NOT EXISTS entry_decisions(id INTEGER PRIMARY KEY,stamp TEXT,market TEXT,payload TEXT);
+            CREATE TABLE IF NOT EXISTS exit_decisions(id INTEGER PRIMARY KEY,stamp TEXT,market TEXT,payload TEXT);
             CREATE TABLE IF NOT EXISTS risk_days(day TEXT PRIMARY KEY,stamp TEXT,baseline REAL,last_equity REAL,locked INTEGER,payload TEXT);
             ''')
 
@@ -20,6 +21,7 @@ class RiskBook:
         with self.records.db() as db:
             if table=='market_checks': db.execute('INSERT INTO market_checks(stamp,scan_id,payload) VALUES(?,?,?)',(stamp,scan,encoded))
             elif table=='entry_decisions': db.execute('INSERT INTO entry_decisions(stamp,market,payload) VALUES(?,?,?)',(stamp,market,encoded))
+            elif table=='exit_decisions': db.execute('INSERT INTO exit_decisions(stamp,market,payload) VALUES(?,?,?)',(stamp,market,encoded))
             else: raise ValueError('unknown risk table')
 
     def mark_equity(self,stamp,state,quotes):

@@ -42,7 +42,7 @@ class Dashboard(engine.UpbitAutoTrader):
         self.closed = False
         self.nav_buttons = []
         super().__init__(root)
-        root.title('UPBIT AUTO TRADING v1.9 · Neon Dashboard')
+        root.title('UPBIT AUTO TRADING v1.10 · Neon Dashboard')
         root.geometry('1536x1000')
         root.minsize(1150,800)
         root.after(500,self.request_chart)
@@ -86,7 +86,7 @@ class Dashboard(engine.UpbitAutoTrader):
         header = tk.Frame(self.root,bg=HEADER,height=58)
         header.pack(fill='x')
         tk.Label(header,text='▥  UPBIT AUTO TRADING',bg=HEADER,fg=TEXT,font=('Segoe UI',21,'bold')).pack(side='left',padx=18,pady=9)
-        tk.Label(header,text='v1.9',bg=HEADER,fg=CYAN,font=('Segoe UI',15,'bold')).pack(side='left')
+        tk.Label(header,text='v1.10',bg=HEADER,fg=CYAN,font=('Segoe UI',15,'bold')).pack(side='left')
         tk.Label(header,text='거래대금 상위 + 추세 + RSI   |   손절 · 익절 · 트레일링',bg=HEADER,fg=MUTED,font=('맑은 고딕',10)).pack(side='left',padx=22)
         self.clock = tk.Label(header,bg=HEADER,fg=TEXT,font=('Segoe UI',10))
         self.clock.pack(side='right',padx=18)
@@ -123,7 +123,7 @@ class Dashboard(engine.UpbitAutoTrader):
             self.tabs.add(page,text=title)
             button = tk.Button(sidebar,text=['⌂','▧','◕','▤','▥','⚙','☷'][i]+'   '+title,command=lambda n=i:self.navigate(n),bg=SIDEBAR,fg=TEXT,activebackground=BLUE,activeforeground='white',relief='flat',anchor='w',font=('맑은 고딕',12,'bold'),padx=20,pady=15)
             button.pack(fill='x',padx=8,pady=(10 if i==0 else 3,3)); self.nav_buttons.append(button)
-        tk.Label(sidebar,text='UPBIT DASHBOARD\nv1.9\n\n실거래 잠금',bg=SIDEBAR,fg=MUTED,font=('Segoe UI',9),justify='left').pack(side='bottom',pady=25)
+        tk.Label(sidebar,text='UPBIT DASHBOARD\nv1.10\n\n실거래 잠금',bg=SIDEBAR,fg=MUTED,font=('Segoe UI',9),justify='left').pack(side='bottom',pady=25)
         dash = pages[0]
         dash.rowconfigure(0,weight=1); dash.rowconfigure(1,weight=0); dash.rowconfigure(2,weight=0)
         self.dashboard_page=dash
@@ -300,7 +300,7 @@ class Dashboard(engine.UpbitAutoTrader):
 
 
 if __name__ == '__main__':
-    raise SystemExit('v1.9은 start.bat 또는 validation_app.py로 실행하세요. 이 구버전 진입점은 잠겨 있습니다.')
+    raise SystemExit('v1.10은 start.bat 또는 validation_app.py로 실행하세요. 이 구버전 진입점은 잠겨 있습니다.')
     import msvcrt
     lockfile = open(engine.BASE/'.instance.lock','a+b')
     lockfile.seek(0)

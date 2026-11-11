@@ -1,4 +1,4 @@
-"""v1.8 validation release: public market data, persisted paper trading, no real orders."""
+"""v1.10 validation release: public market data, persisted paper trading, no real orders."""
 import copy
 import math
 import csv
@@ -23,6 +23,9 @@ from daily_profit import daily_results,write_daily
 from activity import activity_state
 from market_guard import MarketGuard,POLICY,shock_reason,candle_time,market_counts_text
 from capital import CAPITAL_POLICY,allocation_plan
+from capital_v19 import allocation_plan as v19_allocation_plan
+from comparison_v19 import open_control
+from exit_guard import BearExitGuard,EXIT_POLICY
 from risk_records import RiskBook,benchmark
 from tray_icon import TrayIcon
 from network_guard import NetworkGuard
@@ -55,18 +58,21 @@ class ValidationApp(dashboard.Dashboard):
         self.current_scan=None
         self.last_equity=0
         self.record_error=False
+        self.exit_guard=BearExitGuard()
         super().__init__(root)
         self.initialize_capital_policy()
-        root.title('UPBIT AUTO TRADING v1.9 · 가상매매 / 기록 검증 전용')
+        self.control,self.control_risk,self.control_config=open_control(self.records,main.BASE/'benchmark_v19.sqlite3',self.config,stamp())
+        root.title('UPBIT AUTO TRADING v1.10 · 가상매매 / 기록 검증 전용')
         self.live_enabled.set(False); self.live_event.clear()
         self.mode_var.set('가상매매 · 실거래 잠금')
         self.balance_text=f"가상 {self.paper.state['cash']:,.0f}원"
         self.safety_text='가상 검증 전용 · 실제 주문 없음'
         self.render_positions(copy.deepcopy(self.paper.state['positions']))
-        self.records.log(stamp(),'session','v1.9 실행 · 가상 잔고/보유 복구')
-        self.network_event('validation_segment',dict(version='1.9',run_id=self.run_id,
+        self.records.log(stamp(),'session','v1.10 실행 · 가상 잔고/보유 복구')
+        self.network_event('validation_segment',dict(version='1.10',run_id=self.run_id,
             settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,capital_policy=CAPITAL_POLICY,
-            reference_settings=self.reference_config,note='기존 잔고/기록 유지, 새 통신 검증 구간'))
+            reference_settings=self.reference_config,exit_policy=EXIT_POLICY,
+            comparison_v19_seed=self.control.state['comparison_v19_seed'],note='기존 잔고/기록 유지, 새 통신 검증 구간'))
         self.sync_trade_csv()
         self.refresh_ledger()
         self.tray=TrayIcon(main.BASE/'bitcoin.ico')
@@ -346,10 +352,10 @@ class ValidationApp(dashboard.Dashboard):
 
     def on_live_toggle(self):
         self.live_enabled.set(False); self.live_event.clear()
-        messagebox.showinfo('실거래 잠금','v1.9은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
+        messagebox.showinfo('실거래 잠금','v1.10은 가상 검증 전용입니다. 실제 주문을 보내지 않습니다.')
 
     def execute(self,*args,**kwargs):
-        raise RuntimeError('v1.9은 실제 주문을 허용하지 않습니다')
+        raise RuntimeError('v1.10은 실제 주문을 허용하지 않습니다')
 
     def update_mode(self):
         self.mode_var.set('가상매매 · 실거래 잠금')
@@ -373,10 +379,12 @@ class ValidationApp(dashboard.Dashboard):
             return
         self.network=NetworkGuard(self.network_event)
         self.regime=MarketGuard()
+        self.exit_guard=BearExitGuard()
         self.run_id=stamp()
-        self.network_event('validation_segment',dict(version='1.9',run_id=self.run_id,
+        self.network_event('validation_segment',dict(version='1.10',run_id=self.run_id,
             settings={k:self.config[k] for k in main.DEFAULTS},risk_policy=POLICY,capital_policy=CAPITAL_POLICY,
-            reference_settings=self.reference_config,note='시작 버튼 · 새 통신 확인 구간'))
+            reference_settings=self.reference_config,exit_policy=EXIT_POLICY,
+            comparison_v19_seed=self.control.state['comparison_v19_seed'],note='시작 버튼 · 새 통신 확인 구간'))
         self.live_event.clear()
         super().start()
         self.update_activity_signal()
@@ -444,6 +452,25 @@ class ValidationApp(dashboard.Dashboard):
             self.network_failure('비교 시세',e); return
         self.reference.buy(market,quote,self.reference_config,stamp())
 
+    def control_buy(self,market,inputs,received):
+        if not inputs.get('strategy_pass') or not self.network.can_enter() or self.stop_event.is_set():return
+        if time.monotonic()-received>POLICY['max_sample_age'] or not self.control_risk.daily['entry_allowed']:return
+        config,plan=v19_allocation_plan(self.control.state,self.funding_quotes,self.control_config,self.regime.snapshot())
+        if config is None or self.control.gate(market,config,stamp()):return
+        try:
+            quotes=self.market.quotes(sorted(set(self.control.state['positions'])|{market}))
+        except MarketDataError as error:
+            self.control.records.log(stamp(),'comparison_data_error',str(error));return
+        if shock_reason(inputs,quotes[market]):return
+        self.control_risk.mark_equity(stamp(),self.control.state,quotes)
+        if (not self.control_risk.daily['entry_allowed'] or not self.network.can_enter()
+                or self.stop_event.is_set() or time.monotonic()-received>POLICY['max_sample_age']):return
+        config,plan=v19_allocation_plan(self.control.state,quotes,self.control_config,self.regime.snapshot())
+        if config is None:return
+        event=self.control.buy(market,quotes[market],config,stamp())
+        self.control_risk.record('entry_decisions',stamp(),dict(executed=bool(event),capital_plan=plan,
+            market_state=self.regime.snapshot(),policy_version='1.9'),market=market)
+
     def entry_signal(self,market):
         df=self.market.candles(market,count=80)
         if len(df)<55: raise CandleHistoryError('완료 캔들 수 부족 · 해당 종목 진입 제외')
@@ -485,7 +512,7 @@ class ValidationApp(dashboard.Dashboard):
         complete=True
         if self.stop_event.is_set(): return False
         primary=set(self.paper.state['positions'])
-        markets=sorted(primary|set(self.reference.state['positions']))
+        markets=sorted(primary|set(self.reference.state['positions'])|set(self.control.state['positions']))
         try:
             quotes,errors=self.market.holding_quotes(markets)
             if primary-set(quotes):
@@ -497,12 +524,17 @@ class ValidationApp(dashboard.Dashboard):
         # Hide missing prices rather than continuing to display a cached portfolio quote.
         for market in set(markets)-set(quotes): self.prices.pop(market,None)
         events=self.paper.monitor(quotes,self.config,stamp())
+        events+=self.exit_guard.evaluate(self.paper,quotes,self.regime.snapshot(),stamp(),
+            lambda when,payload:self.risk.record('exit_decisions',when,payload,market=payload['market']))
         self.reference.monitor(quotes,self.reference_config,stamp())
+        self.control.monitor(quotes,self.control_config,stamp())
         self.risk.mark_equity(stamp(),self.paper.state,quotes)
+        self.control_risk.mark_equity(stamp(),self.control.state,quotes)
         self.funding_quotes=quotes; self.last_funding_quote=time.monotonic()
         def value(state):
             return None if any(m not in quotes for m in state['positions']) else state['cash']+sum(p['qty']*quotes[m] for m,p in state['positions'].items())
         self.comparison=(value(self.paper.state),value(self.reference.state))
+        self.control_equity=value(self.control.state)
         self.last_risk_mark=time.monotonic()
         if events: self.sync_trade_csv()
         for event in events:
@@ -510,6 +542,7 @@ class ValidationApp(dashboard.Dashboard):
         if time.monotonic()-self.last_equity>=15:
             self.records.snapshot(stamp(),self.paper.state,quotes)
             self.reference.records.snapshot(stamp(),self.reference.state,quotes)
+            self.control.records.snapshot(stamp(),self.control.state,quotes)
             self.last_equity=time.monotonic()
         self.balance_text=f"가상 {self.paper.state['cash']:,.0f}원"
         self.messages.put(('positions',copy.deepcopy(self.paper.state['positions'])))
@@ -527,7 +560,7 @@ class ValidationApp(dashboard.Dashboard):
                 try:
                     if not self.manage_positions(): raise MarketDataError('보유 시세 확인 실패')
                     scan=self.records.start_scan(stamp(),dict({k:self.config[k] for k in main.DEFAULTS},
-                        version='1.9',run_id=self.run_id,risk_policy=POLICY,capital_policy=CAPITAL_POLICY))
+                        version='1.10',run_id=self.run_id,risk_policy=POLICY,capital_policy=CAPITAL_POLICY))
                     self.current_scan=scan; self.scan_text='시장 판단을 위한 전체 후보 조회 중'
                     markets=self.get_candidates(); self.network.confirm_cycle()
                     staged=[]; samples={}
@@ -554,10 +587,13 @@ class ValidationApp(dashboard.Dashboard):
                     assessment=dict(self.regime.snapshot(),policy=POLICY,capital_policy=CAPITAL_POLICY,run_id=self.run_id,
                                     assessed_at=stamp(),settings={k:self.config[k] for k in main.DEFAULTS})
                     self.risk.record('market_checks',stamp(),assessment,scan=scan)
+                    self.exit_guard.observe(assessment,self.paper.state['positions'],assessment['assessed_at'])
+                    self.manage_positions()
                     rows=[]
                     for i,(market,signal,rsi,trend,reason,inputs,received,details) in enumerate(staged):
                         if self.stop_event.is_set(): break
                         self.reference_buy(market,inputs,received)
+                        self.control_buy(market,inputs,received)
                         config,capital=self.entry_plan()
                         gate=capital['reason'] if config is None else ''
                         if not self.network.can_enter(): gate='통신 확인/복구 중 · 신규 가상매수 잠금'
@@ -643,16 +679,17 @@ class ValidationApp(dashboard.Dashboard):
         market=self.regime.snapshot()
         _,capital=self.entry_plan()
         self.config_label.configure(text=f"현금 최소 20% · 최소 {max(150000,self.config['order_krw']):,.0f}원 / 종목 · 최대 {min(5,self.config['max_positions'])}종목\n"
-            f"손절 -{self.config['stop_pct']:g}% · 1차 +{self.config['target_pct']:g}% · 트레일링 -{self.config['trailing_pct']:g}%")
+            f"손절 -{self.config['stop_pct']:g}% · 1차 +{self.config['target_pct']:g}% · 트레일링 -{self.config['trailing_pct']:g}%\nBEAR 전환 시 비용 반영 수익 보호")
         if capital.get('equity') is None:
             self.capital_label.configure(text='자금 계산 대기 · '+capital['reason'])
         else:
             self.capital_label.configure(text=f"총 평가자산 {capital['equity']:,.0f}원 · 현금 {capital['cash']:,.0f}원 · 현금 하한 {capital['reserve_cash']:,.0f}원(20%) · "
-                f"추가 가능 {capital['new_slots']}종목 · 다음 매수 {capital['order_krw']:,.0f}원 · {capital['reason']}")
+                f"추가 가능 {capital['new_slots']}종목 · 다음 매수 {capital['order_krw']:,.0f}원 · {capital['reason']}"+
+                (f" · 종목 한도 {capital['per_position_cap']:,.0f}원" if 'per_position_cap' in capital else ''))
         display,action,foreground,background=dashboard.market_presentation(market['state'])
         self.market_badge.configure(text=display,fg=foreground,bg=background)
         if self.tray:
-            self.tray.status(f"업비트 v1.9 · {'실행 중' if self.running else '중지됨'} · {display}")
+            self.tray.status(f"업비트 v1.10 · {'실행 중' if self.running else '중지됨'} · {display}")
         counts=market_counts_text(market)
         self.market_label.configure(text=f"후보군 기준 · {counts} · {action}\n{market['reason']} · {self.risk.daily['reason']}",
             wraplength=max(400,self.market_strip.winfo_width()-self.market_badge.winfo_reqwidth()-20))
@@ -667,6 +704,9 @@ class ValidationApp(dashboard.Dashboard):
             current,reference=self.comparison
             values='평가 시세 부족' if current is None or reference is None else f'개선안 평가 {current:,.0f}원 / 기존 조건 비교 {reference:,.0f}원'
             self.paper_summary.configure(text=self.paper_summary.cget('text')+'\n'+values+' · 공통 조회 일정의 가상 비교')
+            control=getattr(self,'control_equity',None)
+            self.paper_summary.configure(text=self.paper_summary.cget('text')+'\nv1.9 독립 비교: '+
+                ('평가 시세 부족' if control is None else f'{control:,.0f}원')+' · 업그레이드 시점 잔고에서 시작')
         # Only refresh the last 500 ledger rows when the number of trades changes.
         with self.records.db() as db:
             count=db.execute('SELECT COUNT(*) FROM trades').fetchone()[0]
@@ -707,7 +747,7 @@ def export_bundle(records,path):
             counts={t:db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('scans','observations','trades','logs','quotes','equity','candles','network_events','health_checks','market_checks','entry_decisions','risk_days') if t in tables}
             span=db.execute('SELECT MIN(started),MAX(ended) FROM scans').fetchone()
             state=json.loads(db.execute('SELECT payload FROM state WHERE id=1').fetchone()[0])
-            report=dict(risk_policy=POLICY,capital_policy=CAPITAL_POLICY,version='1.9',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
+            report=dict(risk_policy=POLICY,capital_policy=CAPITAL_POLICY,exit_policy=EXIT_POLICY,version='1.10',exported_at=stamp(),counts=counts,first_scan=span[0],last_scan_end=span[1],
                 simulation_only=True,initial_cash=state['initial_cash'],cash=state['cash'],realized_pnl=state['realized'],
                 fees=state['fees'],positions=state['positions'],closed=state['closed'],wins=state['wins'],
                 fee_rate=state['fee'],slippage_bps=state['slippage_bps'],
